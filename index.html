@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NGP Cross-Reference &amp; Price Lookup</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: #f0f2f5;
+    color: #1a1a2e;
+    min-height: 100vh;
+  }
+
+  header {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%);
+    color: white;
+    padding: 28px 32px 24px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  }
+  header h1 {
+    font-size: 1.85rem;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+  header p {
+    margin-top: 6px;
+    font-size: 0.9rem;
+    opacity: 0.75;
+  }
+
+  .container {
+    max-width: 860px;
+    margin: 36px auto;
+    padding: 0 20px;
+  }
+
+  .card {
+    background: white;
+    border-radius: 14px;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.08);
+    padding: 32px;
+    margin-bottom: 24px;
+  }
+
+  .brand-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 24px;
+  }
+  .brand-tab {
+    flex: 1;
+    padding: 13px;
+    border: 2px solid #e0e4ef;
+    border-radius: 10px;
+    cursor: pointer;
+    text-align: center;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #555;
+    background: white;
+    transition: all 0.18s;
+  }
+  .brand-tab:hover {
+    border-color: #0f3460;
+    color: #0f3460;
+  }
+  .brand-tab.active {
+    background: #0f3460;
+    border-color: #0f3460;
+    color: white;
+    box-shadow: 0 3px 12px rgba(15,52,96,0.35);
+  }
+
+  .search-row {
+    display: flex;
+    gap: 12px;
+    align-items: stretch;
+  }
+  .search-row input {
+    flex: 1;
+    padding: 14px 18px;
+    font-size: 1.1rem;
+    border: 2px solid #e0e4ef;
+    border-radius: 10px;
+    outline: none;
+    transition: border-color 0.18s;
+    text-transform: uppercase;
+  }
+  .search-row input:focus {
+    border-color: #0f3460;
+  }
+  .search-row button {
+    padding: 14px 28px;
+    background: #e94560;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.18s;
+    white-space: nowrap;
+  }
+  .search-row button:hover {
+    background: #c73652;
+  }
+
+  .hint {
+    margin-top: 10px;
+    font-size: 0.82rem;
+    color: #888;
+  }
+
+  /* Result area */
+  #result {
+    margin-top: 4px;
+  }
+
+  .result-card {
+    background: #f8faff;
+    border: 2px solid #d1daf0;
+    border-radius: 12px;
+    padding: 24px 28px;
+    margin-top: 20px;
+  }
+  .result-card.found {
+    border-color: #27ae60;
+    background: #f0fff4;
+  }
+  .result-card.not-found {
+    border-color: #e74c3c;
+    background: #fff5f5;
+  }
+
+  .result-label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #888;
+    margin-bottom: 4px;
+  }
+  .result-value {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #1a1a2e;
+    margin-bottom: 16px;
+  }
+  .result-value.highlight {
+    color: #0f3460;
+    font-size: 1.6rem;
+  }
+
+  .result-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 8px;
+  }
+  .result-box {
+    background: white;
+    border-radius: 10px;
+    padding: 16px 20px;
+    border: 1px solid #e0e4ef;
+  }
+  .price-box {
+    background: #0f3460;
+    color: white;
+    border: none;
+  }
+  .price-box .result-label {
+    color: rgba(255,255,255,0.65);
+  }
+  .price-box .result-value {
+    color: white;
+  }
+
+  .multi-result {
+    margin-top: 4px;
+  }
+  .ngp-part-row {
+    background: white;
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin-bottom: 10px;
+    border: 1px solid #e0e4ef;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .ngp-part-row:last-child { margin-bottom: 0; }
+  .ngp-part-name {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #0f3460;
+    min-width: 120px;
+  }
+  .ngp-price-badge {
+    background: #0f3460;
+    color: white;
+    border-radius: 8px;
+    padding: 6px 14px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .ngp-price-badge.no-price {
+    background: #b0b8cc;
+  }
+
+  .disclaimer {
+    margin-top: 12px;
+    font-size: 0.78rem;
+    color: #888;
+    font-style: italic;
+  }
+
+  /* Batch lookup */
+  .section-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #1a1a2e;
+    margin-bottom: 16px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #f0f2f5;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-title .badge {
+    background: #e94560;
+    color: white;
+    font-size: 0.7rem;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+
+  textarea {
+    width: 100%;
+    padding: 12px 16px;
+    font-size: 0.95rem;
+    border: 2px solid #e0e4ef;
+    border-radius: 10px;
+    resize: vertical;
+    min-height: 100px;
+    outline: none;
+    font-family: 'Courier New', monospace;
+    text-transform: uppercase;
+    transition: border-color 0.18s;
+  }
+  textarea:focus { border-color: #0f3460; }
+
+  .btn-secondary {
+    margin-top: 12px;
+    padding: 11px 22px;
+    background: #0f3460;
+    color: white;
+    border: none;
+    border-radius: 9px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.18s;
+  }
+  .btn-secondary:hover { background: #0a2540; }
+
+  #batch-result {
+    margin-top: 18px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+  }
+  th {
+    background: #1a1a2e;
+    color: white;
+    padding: 10px 14px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  th:first-child { border-radius: 8px 0 0 0; }
+  th:last-child { border-radius: 0 8px 0 0; }
+  td {
+    padding: 10px 14px;
+    border-bottom: 1px solid #eef0f7;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:nth-child(even) td { background: #f8faff; }
+  tr:hover td { background: #eef4ff; }
+
+  .price-cell {
+    font-weight: 700;
+    color: #0f3460;
+  }
+  .ngp-cell {
+    font-weight: 600;
+    color: #0f3460;
+  }
+  .not-found-cell {
+    color: #b0b8cc;
+    font-style: italic;
+  }
+
+  footer {
+    text-align: center;
+    padding: 28px;
+    color: #aaa;
+    font-size: 0.8rem;
+  }
+
+  @media (max-width: 560px) {
+    .result-grid { grid-template-columns: 1fr; }
+    .search-row { flex-direction: column; }
+    .ngp-part-row { flex-direction: column; align-items: flex-start; }
+    header h1 { font-size: 1.35rem; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>NGP Cross-Reference &amp; Price Lookup</h1>
+  <p>Convert ZERO &amp; PEMKO part numbers to NGP equivalents with current list pricing &bull; Price List: June 8, 2026</p>
+</header>
+
+<div class="container">
+
+  <!-- Single Lookup -->
+  <div class="card">
+    <div class="section-title">Single Part Lookup</div>
+
+    <div class="brand-tabs">
+      <button class="brand-tab active" onclick="setActiveBrand('zero', this)">ZERO</button>
+      <button class="brand-tab" onclick="setActiveBrand('pemko', this)">PEMKO</button>
+    </div>
+
+    <div class="search-row">
+      <input type="text" id="part-input" placeholder="Enter part number (e.g. 55, S88, B75)"
+             onkeydown="if(event.key==='Enter') doLookup()" autocomplete="off" spellcheck="false">
+      <button onclick="doLookup()">Look Up</button>
+    </div>
+    <p class="hint">Tip: Part numbers are case-insensitive. Do not include finish suffix (A, DKB, BR, etc.) &mdash; enter the base part number only.</p>
+
+    <div id="result"></div>
+  </div>
+
+  <!-- Batch Lookup -->
+  <div class="card">
+    <div class="section-title">
+      Batch Lookup
+      <span class="badge">Multi-Part</span>
+    </div>
+
+    <div class="brand-tabs">
+      <button class="brand-tab active" onclick="setActiveBatchBrand('zero', this)">ZERO</button>
+      <button class="brand-tab" onclick="setActiveBatchBrand('pemko', this)">PEMKO</button>
+    </div>
+
+    <textarea id="batch-input" placeholder="Enter one part number per line:
+55
+S88
+B75
+145B"></textarea>
+    <br>
+    <button class="btn-secondary" onclick="doBatchLookup()">Look Up All</button>
+
+    <div id="batch-result"></div>
+  </div>
+
+</div>
+
+<footer>
+  NGP Price List &bull; June 8, 2026 &bull; List prices shown &mdash; contact NGP for net pricing &bull; Items may not be completely identical; verify with NGP catalog
+</footer>
+
+<script>
+// ---- Embedded Data ----
+const DATA = {"zero":{"CURRENT":"PRODUCT","CERTIFICATION":"AND","APPLICATION":"INFORMATION.","11":"17","50M":"200N","103":"659","18":"43CB","51":"1000R","104":"655","19B":"43CB","52":"112N","105":"8134","19WB":"43CB","53":"136N","106":"8134","23":"80B","55":"140","111":"36V","31":"2N","56":"144","117":"5040","33":"2S","63":"411","118B":"43CB","34":"143P","64":"410","119B":"43CB","34P":"336P","65":"896N","119WB":"43CB","35":"143S","68":"8137","137P":"340P","36":"143N","69":"8136","139":"114N, 130N","38":"143","76B":"484BR","140":"109N, 122N","39":"200N","84R":"8168N","142":"16","39W":"199N","93":"81369N","153":"313V","43SP":"1390SP","96":"D608","155":"140P","44STST":"139SS","98":"185P","156":"144P","47A":"139A","99":"160S","164":"412","49":"BAR1","100":"160S","170":"103N","50":"127N","102":"653","188S":"5050","188FS":"9750","350":"225NA","547":"437, 713","188ZAG":"ANTI-LIG","5050":"351","222N":"548","438,":"813","221":"PA","352":"222N","555":"140S","222":"LES","355":"320NA","557":"144S","223":"10-24","MS/LA":"361","423NA":"560","224":"1/4-20","420N":"561","362":"420N","564":"8135N","226":"1/4-20MS-COMBO","364":"423NA","565":"897N","232":"954","365":"520N","566":"950N","233":"953","366":"520N","570":"107S","236":"R50","370":"149M, 159M","571":"672N","237":"957","376":"170N","600CP":"818","238":"957","381A":"331","601CP":"814","253":"312V","383":"158N","622":"321","254":"254P","398V":"336P","623":"322","255":"140P","429":"700S","624":"8424","259R":"RR952","469":"BAR1","625":"8425","265":"513","475":"172N","626":"8426","268":"8139","477":"672N","647B":"427BR","269":"BAR4","485":"137N","653":"211","270":"108N","488S":"2525","654":"424","312":"134","488FS":"9750","655":"425","314":"134N","511":"14RA","656":"426","318":"122N","518":"RR/1000R","663":"8139","320":"335NA","521FS":"9595DKB","664":"412SS","321":"220N","523":"884B/S","672":"8142","322":"122N","524":"884B/S","673":"8143","323":"335","525":"8435N","674":"8144","326":"137N","526":"8436N","675":"8145","328":"137N","539":"202N","676":"8146","329":"200N","544":"413, 434","678":"8148","339":"198N","545":"435, 513","712":"141N","339W":"197N","546":"436, 613","770":"1038N","770SPB":"3SP","3546A":"12T","8303":"160S","870":"106N","3546A-FLO":"12TNF","8304":"A605","870SPB":"7SP","6570":"427E","8305":"A625","873":"140S","6575":"8475","8644":"413, 434","951":"2252","6710":"8150","8645":"424E","972":"2252","7350":"225NA","8654":"435, 513","974":"2252","8001":"601","8655":"425E","1370":"108N","8002":"H612","8664":"436, 613","1545":"315","8015":"G610","8665":"426E","1545B":"315BR","8144":"5020","8780N":"5100N","1673":"322","8145S-BK":"2525C","8878":"172S","1674":"324","8149":"D648","8879":"672","1675":"325","8150S-BK":"5075C","9011V":"36EV","1682":"414","8191":"97V","9016V":"319EV","1684":"404","8192":"C607","9091V":"97V","1685R":"404","8193":"A605","9097V":"101V","1686":"401","8194":"115N","9117BK":"5040C","2070A-10":"FS10","8195":"672N","9188BK":"5050C","2070A-24":"FS22","8197":"101V","9188BR":"5050B","2070A-36":"FS34","8198":"C627","3062500PSA":"9800C","2361":"654","8217S-BK":"5070B"},"pemko":{"NON-SLIP":"SIA","NYLON":"BRUSH","PEMKOPRENE":"V","NEOPRENE":"SPONGE","THERMOSEAL":"N","ACP112":"54CP","CS-W100":"SLSS2","HF4/100A":"SLAL-75-BF","402":"400","8168N":"HSS2000","E199":"196A, 81369N","HSS2000":"S88, 9750","ADJ232V14":"EGA305XGSS","9990":"PDL","EV232BL":"401","PDLBRKT":"SDG-BRKT","ADJ232":"2325V8","EV2320BL":"398","PDL-D1":"SDG-DS","A371P":"136P","EV2322BL":"399","PDL-D2":"SDG-WS","B61":"80B","EV2325BL":"402","PF28200A":"SLAL-250-PDKIT","B75":"43CB","EV2326BL":"407","P88BL":"ANTI-LIG","BLD-FT-01BSP":"SL-BLFT2","FHSL1425":"1/4-20","COMBO":"R.5F","BLD-FT-01IS":"SL-SNFT2","H200A":"SLAL-250-PD","R.5FMR":"R50","BLD-FT-02BSP":"SL-BLFT1","HBP200A":"F134, SLAL-250-BPF","R.50S":"R050","BLD-FT-02IS":"SL-SNFT1","R.50SMR":"R050","CS-W60":"SLSS1","HF2/100A":"SLAL-75-BF","R.50SS":"R050","R.50SSMR":"R050","R20S":"R0200","R.75F":"R75","R20SMR":"R0200","R.75FMR":"R75","R20SS":"R0200","750S":"R075","R20SSMR":"R0200","R.750SMR":"R075","R2.25F":"R225","WING":"16","R.750SS":"R075","R2.25FMR":"R225","WING10":"X","R.750SSMR":"R075","RAMP1":"957","R1F":"R100","RAMP3":"R50","WING16":"X","R1FMR":"R100","RAMP4":"953","R10S":"R0100","RAMP5":"954","XGSHIM":"9225, 9275","R10SMR":"R0100","RAMP6":"955","XGSS90ME-KIT":"GAP90-ME","R10SS":"R0100","RAMP8A":"957","XG10BL":"9200C","R10SSMR":"R0100","RAMP9A":"962","XG10GR":"9200GR","R1.25F":"R125","RAMP10A":"951","XG2212_PK773BL":"9245V","R1.25FMR":"R125","RAMP11A":"961","XG90KIT":"GAP90","R1.250S":"R0125","RAMP12A":"959","14/1A":"814","R1.250SMR":"R0125","SLAL-250-SW":"X","RF280C-SWTK":"18/1A","R1.250SS":"R0125","57":"96V","R1.250SSMR":"R0125","SL-SQ18":"145B","R1.5F":"R150","RR1":"RR952","151":"411","R1.5FMR":"R150","RR2":"RR954","154":"512","R1.50S":"R0150","RR100":"RR5007BL","154SS":"512SS","R1.50SMR":"R0150","S44":"5040","157":"655","R1.50SS":"R0150","S77":"5060","158":"653","R1.50SSMR":"R0150","S442":"5020","169":"211","R1.75F":"R175","S772":"5070","170":"424E","R1.75FMR":"R175","S773":"5075","171":"425E","R1.750S":"R0175","S88":"5050","171B":"425BR","R1.750SMR":"R0175","SBR1F":"RR42","172":"426E","R1.75OSS":"R0175","SBR.5F":"RR952","172B":"426BR","R1.750SSMR":"R0175","SFT-W60":"SLSS1-SC","173":"410","R2F":"R200","SFT-W100":"SLSS2-SC","174":"417","R2FMR":"R200","STC411APK":"335S","175":"412","175SS":"412SS","234_PK":"112N","259":"657","176":"427E","234_V":"312V","270":"413, 434","176B":"427BR","236":"414","271":"435, 513","177_T":"804N","252":"226_FGV, 8434V","272":"436, 613","177_V":"804V","273":"292_FGPK, 8533N","179":"890","181":"803","184":"2","188":"58","253":"226_FGV, 8435V","189":"8138","190":"8142","274":"292_FGPK, 8633N","191":"8143","192":"8144","193":"8146","195":"8137","196":"8136","254":"226_FGV, 8436V","200":"8139","276":"437, 713","208_V":"12V","277_R":"897N","209":"312V","277_S":"897S","210":"318V","278":"292_FGPK, 8433N","211":"313V","215_PK":"319EV","215_V":"319EV","217_PK":"26N","279":"292_FGPK, 8433N","217_V":"36EV","255":"226_FGV, 8437V","221_PK":"99N","221_V":"99V","285":"108N","222_PK":"15N","290ANB":"706E","222_V":"35EV","290_PK":"700EN, 705EV","223":"95WH","290_S":"700ES","227":"324","290_V":"705EV","228":"8148","322":"1038N","256":"6_FG","229":"325","290_SSTOP":"700ES","290_VSTOP":"705EV","325XGSSN":"9590","434_NBL":"683A","296":"165","329_N":"115N","1710":"425E","297_PK":"137N","332":"110","1715":"425HD","297_S":"137S","345":"17","1716":"426HD","300":"143P","345_NB":"C627","1842":"4","303":"160","345_V":"101V","1951":"321","303_PK":"135N","346":"16","2001":"950","303__TST":"160FATT","350_SR":"103N","2005":"896","305_N":"125N","351":"140","2006":"898","305_R":"127N","351_P":"140P","2009_PK":"896N","305_S":"127S","351_S":"140S","2010_PK":"950N","305SSE":"125NSS","354":"144","2113_V":"13TNF","305SSR":"127NSS","354_P":"144P","2113_VUN":"13T","305SSS":"127SSS","354_S":"144S","2132":"416","306_QD":"384","355":"158","2134":"417","307":"97V","357C":"139A","2170V":"344NF","309":"185P","357D":"139DKB","2170VUN":"344","310_":"311CIN, 14R","357SP":"139SP","2173_V":"36ETNF","312_R":"130N","357SS":"139SS","2173_VUN":"36ET","314":"112N","359":"176","2211":"99V","315_R":"130N","368_N":"202N","2212_PK773":"99T6","315SSN":"200NSS","369":"136","2221":"35EV","315SSR":"130NSS","375":"109N","2343_V":"12TNF","315_N":"200N","379":"107","2343_VUN":"12T","316_PK":"137N","411_NBL":"225WH","2286":"8170","316_S":"137S","411_PK":"335NA","2364":"404","319_N":"137N","411_RL":"335NA","2548":"428E","319_R":"130N","411_SL":"335SA","2549":"429E","319_S":"137S","412":"222","2550":"430E","319SSN":"129NSS","420_PKL":"320NA","2555":"355","321":"198N","420_SL":"320SA","2705_T":"896HDN","420_VL":"320VA","2715":"513HD","324":"8163","434":"423NA","2716":"613HD","2727":"659","3692_PK773":"12T6","18400":"I-615","2746":"292_FGPK, 8423N","4131":"222","18950":"I-616","4301":"420N","19125":"8163","4301_NBL":"680","29310":"172","5041":"A635","2748":"438, 813","5110":"5100N","2749":"439, 913","45041":"A626","2750":"440, 1013","EGA305XGSS":"9990","45061":"602","2891_PK":"705V","18041":"A605","45062":"602","2891_S":"700S","18050":"600","45100":"D620","2891_V":"705V","18061":"B606","45175":"G622","3151_N":"199N","18062":"C607","45250":"H623","3452_NB":"C627","18100":"D608, OV633","45400":"I-624","3452_V":"1015V","18175":"G610","90100":"D648","3572PP7":"1392SP","18250":"H612","293100":"674"},"prices":{"882":{"price":29.5,"unit":"FT"},"8144BR":{"price":333.95,"unit":"FT"},"8164DKB":{"price":41.0,"unit":"FT"},"8133":{"price":11.8,"unit":"FT"},"8144DKB":{"price":37.85,"unit":"FT"},"8167":{"price":49.6,"unit":"FT"},"8133DKB":{"price":16.9,"unit":"FT"},"8145":{"price":34.25,"unit":"FT"},"8167DKB":{"price":63.75,"unit":"FT"},"8134":{"price":21.85,"unit":"FT"},"8145BR":{"price":440.25,"unit":"FT"},"8168N":{"price":16.3,"unit":"FT"},"8134DKB":{"price":36.0,"unit":"FT"},"8145DKB":{"price":47.2,"unit":"FT"},"8170":{"price":77.9,"unit":"FT"},"8136":{"price":10.65,"unit":"FT"},"8146":{"price":40.1,"unit":"FT"},"8170DKB":{"price":102.7,"unit":"FT"},"8136BR":{"price":113.3,"unit":"FT"},"8146BR":{"price":500.9,"unit":"FT"},"8136DKB":{"price":16.55,"unit":"FT"},"8146DKB":{"price":53.75,"unit":"FT"},"8137":{"price":10.9,"unit":"FT"},"8147":{"price":49.55,"unit":"FT"},"8137DKB":{"price":14.55,"unit":"FT"},"8147DKB":{"price":66.1,"unit":"FT"},"8138":{"price":10.65,"unit":"FT"},"8148":{"price":52.8,"unit":"FT"},"8139":{"price":15.1,"unit":"FT"},"8148DKB":{"price":75.35,"unit":"FT"},"6SS":{"price":43.75,"unit":"FT"},"8139DKB":{"price":22.15,"unit":"FT"},"8149":{"price":71.45,"unit":"FT"},"8140BR":{"price":101.45,"unit":"FT"},"8149DKB":{"price":100.9,"unit":"FT"},"8142":{"price":16.95,"unit":"FT"},"8150":{"price":71.7,"unit":"FT"},"8142DKB":{"price":22.15,"unit":"FT"},"8150DKB":{"price":101.45,"unit":"FT"},"8143":{"price":22.45,"unit":"FT"},"8163":{"price":24.75,"unit":"FT"},"8143DKB":{"price":31.35,"unit":"FT"},"8163DKB":{"price":34.25,"unit":"FT"},"8144":{"price":28.95,"unit":"FT"},"8164":{"price":30.4,"unit":"FT"},"R50":{"price":33.95,"unit":"FT"},"RO50":{"price":95.55,"unit":"FT"},"R50DKB":{"price":54.0,"unit":"FT"},"RO50DKB":{"price":128.65,"unit":"FT"},"RCE-9":{"price":293.0,"unit":"ST"},"R50SIA":{"price":90.95,"unit":"FT"},"RO50SIA":{"price":209.55,"unit":"FT"},"RCE-9DKB":{"price":350.0,"unit":"ST"},"R75":{"price":57.25,"unit":"FT"},"RO75":{"price":117.95,"unit":"FT"},"RCE-9SIA":{"price":331.0,"unit":"ST"},"R75DKB":{"price":86.9,"unit":"FT"},"RO75DKB":{"price":161.7,"unit":"FT"},"RCE-15":{"price":468.0,"unit":"ST"},"R75SIA":{"price":142.75,"unit":"FT"},"RO75SIA":{"price":260.45,"unit":"FT"},"RCE-15DKB":{"price":525.0,"unit":"ST"},"R100":{"price":77.6,"unit":"FT"},"RO100":{"price":139.3,"unit":"FT"},"RCE-15SIA":{"price":520.0,"unit":"ST"},"R100DKB":{"price":110.65,"unit":"FT"},"RO100DKB":{"price":185.35,"unit":"FT"},"RCE-21":{"price":766.0,"unit":"ST"},"R100SIA":{"price":191.6,"unit":"FT"},"RO100SIA":{"price":310.3,"unit":"FT"},"RCE-21DKB":{"price":835.0,"unit":"ST"},"R125":{"price":109.2,"unit":"FT"},"RO125":{"price":170.0,"unit":"FT"},"RCE-21SIA":{"price":846.0,"unit":"ST"},"R125DKB":{"price":151.6,"unit":"FT"},"RO125DKB":{"price":225.45,"unit":"FT"},"RCE-30":{"price":940.0,"unit":"ST"},"R125SIA":{"price":251.7,"unit":"FT"},"RO125SIA":{"price":369.5,"unit":"FT"},"RCE-30DKB":{"price":1010.0,"unit":"ST"},"R150":{"price":130.4,"unit":"FT"},"RO150":{"price":192.4,"unit":"FT"},"RCE-30SIA":{"price":1039.0,"unit":"ST"},"R150DKB":{"price":172.5,"unit":"FT"},"RO150DKB":{"price":251.35,"unit":"FT"},"R150SIA":{"price":301.4,"unit":"FT"},"RO150SIA":{"price":420.4,"unit":"FT"},"R175":{"price":167.55,"unit":"FT"},"RO175":{"price":230.1,"unit":"FT"},"R175DKB":{"price":221.85,"unit":"FT"},"RO175DKB":{"price":298.55,"unit":"FT"},"R175SIA":{"price":367.05,"unit":"FT"},"RO175SIA":{"price":486.6,"unit":"FT"},"RR42":{"price":368.0,"unit":"FT"},"R200":{"price":188.8,"unit":"FT"},"RO200":{"price":251.3,"unit":"FT"},"RR952":{"price":114.0,"unit":"FT"},"R200DKB":{"price":251.35,"unit":"FT"},"RO200DKB":{"price":323.35,"unit":"FT"},"RR954":{"price":254.0,"unit":"FT"},"R200SIA":{"price":416.8,"unit":"FT"},"RO200SIA":{"price":536.3,"unit":"FT"},"R225":{"price":232.45,"unit":"FT"},"RO225":{"price":292.7,"unit":"FT"},"R225DKB":{"price":297.35,"unit":"FT"},"RO225DKB":{"price":369.35,"unit":"FT"},"R225SIA":{"price":488.95,"unit":"FT"},"RO225SIA":{"price":606.2,"unit":"FT"},"R250":{"price":270.25,"unit":"FT"},"RO250":{"price":330.4,"unit":"FT"},"R250DKB":{"price":344.55,"unit":"FT"},"RO250DKB":{"price":417.75,"unit":"FT"},"R250SIA":{"price":555.25,"unit":"FT"},"RO250SIA":{"price":672.4,"unit":"FT"},"HP90-0.5":{"price":117.6,"unit":"PK"},"HP90-1.0":{"price":191.1,"unit":"PK"},"HP90-1.5":{"price":265.65,"unit":"PK"},"HP90-2.0":{"price":439.95,"unit":"PK"},"HP90-CYL":{"price":284.55,"unit":"ST"},"HP90-FB":{"price":315.0,"unit":"ST"},"2V":{"price":10.65,"unit":"FT"},"HP90-MORT":{"price":246.75,"unit":"ST"},"2VDKB":{"price":14.5,"unit":"FT"},"HS-1":{"price":388.5,"unit":"BX"},"3ASL":{"price":75.6,"unit":"EA"},"3DKB":{"price":75.6,"unit":"EA"},"9220VA":{"price":27.85,"unit":"FT"},"3SP":{"price":75.6,"unit":"EA"},"9220VDKB":{"price":36.25,"unit":"FT"},"4V":{"price":10.65,"unit":"FT"},"9220WHA":{"price":30.05,"unit":"FT"},"4VDKB":{"price":14.5,"unit":"FT"},"9220WHDKB":{"price":38.95,"unit":"FT"},"5VA":{"price":16.1,"unit":"FT"},"9225":{"price":24.5,"unit":"EA"},"9245VA":{"price":94.6,"unit":"FT"},"5VDKB":{"price":21.15,"unit":"FT"},"9245VDKB":{"price":104.7,"unit":"FT"},"6VA":{"price":13.65,"unit":"FT"},"9245WHA":{"price":102.45,"unit":"FT"},"6VDKB":{"price":18.45,"unit":"FT"},"9245WHDKB":{"price":108.0,"unit":"FT"},"7ASL":{"price":75.6,"unit":"EA"},"9275":{"price":32.0,"unit":"EA"},"7DKB":{"price":75.6,"unit":"EA"},"9545VA":{"price":109.15,"unit":"FT"},"7SP":{"price":75.6,"unit":"EA"},"9545VDKB":{"price":120.3,"unit":"FT"},"12T":{"price":10.65,"unit":"FT"},"9545WHA":{"price":117.95,"unit":"FT"},"12TDKB":{"price":14.6,"unit":"FT"},"9545WHDKB":{"price":124.7,"unit":"FT"},"GAP90":{"price":85.0,"unit":"FT"},"12T6":{"price":11.4,"unit":"FT"},"9590":{"price":171.25,"unit":"FT"},"GAP90DKB":{"price":85.0,"unit":"FT"},"12T6DKB":{"price":15.45,"unit":"FT"},"9595DKB":{"price":171.25,"unit":"FT"},"GAP90-ME":{"price":85.0,"unit":"FT"},"9750C":{"price":22.0,"unit":"FT"},"131N":{"price":15.35,"unit":"FT"},"GAP90N":{"price":85.0,"unit":"FT"},"9945EC":{"price":76.65,"unit":"PK"},"9945NEC":{"price":76.65,"unit":"PK"},"12V":{"price":8.0,"unit":"FT"},"9990":{"price":154.35,"unit":"FT"},"12VDKB":{"price":11.95,"unit":"FT"},"13TA":{"price":14.45,"unit":"FT"},"13TDKB":{"price":19.15,"unit":"FT"},"FP180-225":{"price":215.25,"unit":"BX"},"SDG-3":{"price":70.35,"unit":"EA"},"13T6A":{"price":14.9,"unit":"FT"},"SDG-4":{"price":71.4,"unit":"EA"},"13T6DKB":{"price":19.7,"unit":"FT"},"SDG-10B":{"price":71.4,"unit":"EA"},"13VA":{"price":11.8,"unit":"FT"},"SDG-26D":{"price":61.0,"unit":"EA"},"13VDKB":{"price":16.55,"unit":"FT"},"54CP":{"price":10.95,"unit":"EA"},"99TDKB":{"price":42.0,"unit":"FT"},"58":{"price":8.65,"unit":"FT"},"99TWHA":{"price":38.7,"unit":"FT"},"58DKB":{"price":12.4,"unit":"FT"},"99TWHDKB":{"price":49.9,"unit":"FT"},"60FP":{"price":10.7,"unit":"ST"},"99T6A":{"price":31.35,"unit":"FT"},"80B":{"price":24.2,"unit":"FT"},"99T6DKB":{"price":42.5,"unit":"FT"},"92NA":{"price":27.7,"unit":"FT"},"99VA":{"price":29.2,"unit":"FT"},"15NA":{"price":20.1,"unit":"FT"},"92NDKB":{"price":38.95,"unit":"FT"},"99VDKB":{"price":40.45,"unit":"FT"},"15NDKB":{"price":25.2,"unit":"FT"},"92NWHA":{"price":35.4,"unit":"FT"},"99WHA":{"price":35.65,"unit":"FT"},"16A":{"price":10.1,"unit":"FT"},"92NWHDKB":{"price":46.6,"unit":"FT"},"99WHDKB":{"price":46.95,"unit":"FT"},"16DKB":{"price":13.85,"unit":"FT"},"92TA":{"price":28.35,"unit":"FT"},"101V":{"price":7.35,"unit":"FT"},"16SS":{"price":106.2,"unit":"FT"},"92TDKB":{"price":39.55,"unit":"FT"},"101VA":{"price":9.0,"unit":"FT"},"17":{"price":5.45,"unit":"FT"},"92TWHA":{"price":36.4,"unit":"FT"},"101VDKB":{"price":11.55,"unit":"FT"},"17DKB":{"price":10.6,"unit":"FT"},"92TWHDKB":{"price":47.55,"unit":"FT"},"102VA":{"price":10.9,"unit":"FT"},"17SS":{"price":86.15,"unit":"FT"},"92T6A":{"price":29.2,"unit":"FT"},"102VDKB":{"price":14.55,"unit":"FT"},"18V":{"price":11.6,"unit":"FT"},"92T6DKB":{"price":40.45,"unit":"FT"},"103NA":{"price":30.8,"unit":"FT"},"19V":{"price":13.7,"unit":"FT"},"92VA":{"price":26.0,"unit":"FT"},"103NAFS":{"price":35.7,"unit":"FT"},"19VDKB":{"price":20.0,"unit":"FT"},"92VDKB":{"price":37.2,"unit":"FT"},"103NDKB":{"price":36.65,"unit":"FT"},"26NA":{"price":17.5,"unit":"FT"},"92WHA":{"price":32.8,"unit":"FT"},"103NDKBFS":{"price":41.6,"unit":"FT"},"26NDKB":{"price":21.85,"unit":"FT"},"92WHDKB":{"price":44.0,"unit":"FT"},"106NA":{"price":30.4,"unit":"FT"},"35VA":{"price":15.45,"unit":"FT"},"95WH":{"price":18.0,"unit":"FT"},"106NDKB":{"price":40.45,"unit":"FT"},"35VDKB":{"price":20.4,"unit":"FT"},"95WH-BB":{"price":18.0,"unit":"FT"},"106SA":{"price":31.85,"unit":"FT"},"35ET":{"price":14.45,"unit":"FT"},"95WHDKB":{"price":26.3,"unit":"FT"},"106SDKB":{"price":42.0,"unit":"FT"},"35ETDKB":{"price":18.7,"unit":"FT"},"96V":{"price":6.9,"unit":"FT"},"107NA":{"price":22.15,"unit":"FT"},"35ET6":{"price":15.1,"unit":"FT"},"96VA":{"price":8.65,"unit":"FT"},"107NAFS":{"price":27.25,"unit":"FT"},"35ET6DKB":{"price":19.55,"unit":"FT"},"96VDKB":{"price":10.15,"unit":"FT"},"107NDKB":{"price":28.35,"unit":"FT"},"35EV":{"price":12.4,"unit":"FT"},"97V":{"price":4.9,"unit":"FT"},"107NDKBFS":{"price":33.4,"unit":"FT"},"35EVDKB":{"price":16.85,"unit":"FT"},"107SA":{"price":25.2,"unit":"FT"},"36ET":{"price":12.15,"unit":"FT"},"97VA":{"price":6.5,"unit":"FT"},"107SDKB":{"price":31.1,"unit":"FT"},"36ETDKB":{"price":16.8,"unit":"FT"},"108NA":{"price":15.45,"unit":"FT"},"36ET6":{"price":12.95,"unit":"FT"},"97VDKB":{"price":8.1,"unit":"FT"},"109NA":{"price":14.35,"unit":"FT"},"36ET6DKB":{"price":17.7,"unit":"FT"},"109NDKB":{"price":19.15,"unit":"FT"},"36EV":{"price":10.8,"unit":"FT"},"99NA":{"price":29.8,"unit":"FT"},"110NA":{"price":7.65,"unit":"FT"},"36EVDKB":{"price":15.6,"unit":"FT"},"99NDKB":{"price":41.0,"unit":"FT"},"110NDKB":{"price":10.3,"unit":"FT"},"36VA":{"price":13.3,"unit":"FT"},"99NWHA":{"price":37.5,"unit":"FT"},"110SA":{"price":10.8,"unit":"FT"},"36VDKB":{"price":17.85,"unit":"FT"},"99NWHDKB":{"price":48.7,"unit":"FT"},"110SDKB":{"price":13.4,"unit":"FT"},"43CB":{"price":11.25,"unit":"FT"},"99TA":{"price":30.75,"unit":"FT"},"112N":{"price":22.15,"unit":"FT"},"112NDKB":{"price":27.2,"unit":"FT"},"131NA":{"price":11.65,"unit":"FT"},"140SA":{"price":62.0,"unit":"FT"},"113NA":{"price":16.05,"unit":"FT"},"131NDKB":{"price":14.25,"unit":"FT"},"140SDKB":{"price":78.0,"unit":"FT"},"113NDKB":{"price":21.1,"unit":"FT"},"133NA":{"price":9.35,"unit":"FT"},"143NA":{"price":20.3,"unit":"FT"},"114NA":{"price":12.95,"unit":"FT"},"133NDKB":{"price":12.6,"unit":"FT"},"143NDKB":{"price":27.65,"unit":"FT"},"114NDKB":{"price":15.6,"unit":"FT"},"134NA":{"price":11.65,"unit":"FT"},"143PA":{"price":20.0,"unit":"FT"},"114SA":{"price":16.3,"unit":"FT"},"134NDKB":{"price":14.25,"unit":"FT"},"143PDKB":{"price":27.4,"unit":"FT"},"114SDKB":{"price":18.75,"unit":"FT"},"134SA":{"price":14.95,"unit":"FT"},"143SA":{"price":21.2,"unit":"FT"},"115NA":{"price":21.0,"unit":"FT"},"134SDKB":{"price":17.45,"unit":"FT"},"143SDKB":{"price":28.65,"unit":"FT"},"115NDKB":{"price":26.5,"unit":"FT"},"135N":{"price":7.25,"unit":"FT"},"144PA":{"price":61.3,"unit":"FT"},"118N":{"price":16.1,"unit":"FT"},"135NA":{"price":9.5,"unit":"FT"},"144PDKB":{"price":77.6,"unit":"FT"},"119N":{"price":18.2,"unit":"FT"},"135NDKB":{"price":11.3,"unit":"FT"},"144SA":{"price":63.7,"unit":"FT"},"119NDKB":{"price":24.5,"unit":"FT"},"136N":{"price":9.4,"unit":"FT"},"144SDKB":{"price":80.0,"unit":"FT"},"120NA":{"price":10.3,"unit":"FT"},"136NDKB":{"price":15.65,"unit":"FT"},"149MA":{"price":37.5,"unit":"FT"},"120NDKB":{"price":13.95,"unit":"FT"},"136P":{"price":7.65,"unit":"FT"},"149MDKB":{"price":46.0,"unit":"FT"},"120NSS":{"price":47.2,"unit":"FT"},"136PDKB":{"price":13.85,"unit":"FT"},"150UA":{"price":11.65,"unit":"FT"},"120SA":{"price":13.3,"unit":"FT"},"136S":{"price":10.65,"unit":"FT"},"150UDKB":{"price":14.3,"unit":"FT"},"120SDKB":{"price":16.95,"unit":"FT"},"136SDKB":{"price":16.8,"unit":"FT"},"151N":{"price":9.3,"unit":"FT"},"120SSS":{"price":51.3,"unit":"FT"},"137NA":{"price":11.65,"unit":"FT"},"122NA":{"price":9.35,"unit":"FT"},"151S":{"price":11.0,"unit":"FT"},"122NDKB":{"price":12.6,"unit":"FT"},"137NDKB":{"price":14.25,"unit":"FT"},"125NA":{"price":21.0,"unit":"FT"},"151V":{"price":8.55,"unit":"FT"},"125NDKB":{"price":26.5,"unit":"FT"},"137SA":{"price":15.0,"unit":"FT"},"125NSS":{"price":100.5,"unit":"FT"},"152S":{"price":5.05,"unit":"FT"},"127NA":{"price":8.2,"unit":"FT"},"137SDKB":{"price":17.45,"unit":"FT"},"152SA":{"price":7.65,"unit":"FT"},"127NDKB":{"price":10.6,"unit":"FT"},"152SDKB":{"price":8.65,"unit":"FT"},"127NSS":{"price":46.05,"unit":"FT"},"139A":{"price":12.4,"unit":"FT"},"152V":{"price":3.3,"unit":"FT"},"127SA":{"price":11.3,"unit":"FT"},"139ALD":{"price":81.4,"unit":"FT"},"152VA":{"price":5.25,"unit":"FT"},"127SDKB":{"price":14.45,"unit":"FT"},"139DKB":{"price":15.95,"unit":"FT"},"152VDKB":{"price":6.45,"unit":"FT"},"127SSS":{"price":49.6,"unit":"FT"},"139DKBLD":{"price":84.95,"unit":"FT"},"155V":{"price":3.35,"unit":"FT"},"129NSS":{"price":55.5,"unit":"FT"},"139SP":{"price":22.05,"unit":"FT"},"155VDKB":{"price":7.6,"unit":"FT"},"130NA":{"price":9.5,"unit":"FT"},"139SPLD":{"price":82.95,"unit":"FT"},"155S":{"price":6.2,"unit":"FT"},"130NDKB":{"price":13.3,"unit":"FT"},"139SPDKB":{"price":22.05,"unit":"FT"},"155SDKB":{"price":11.25,"unit":"FT"},"130NSS":{"price":49.55,"unit":"FT"},"139SS":{"price":53.55,"unit":"FT"},"156S":{"price":5.05,"unit":"FT"},"130SA":{"price":12.7,"unit":"FT"},"139SSLD":{"price":117.7,"unit":"FT"},"156SDKB":{"price":8.65,"unit":"FT"},"130SDKB":{"price":15.85,"unit":"FT"},"140PA":{"price":60.0,"unit":"FT"},"156V":{"price":3.3,"unit":"FT"},"130SSS":{"price":54.3,"unit":"FT"},"140PDKB":{"price":74.0,"unit":"FT"},"156VDKB":{"price":6.45,"unit":"FT"},"158NA":{"price":13.3,"unit":"FT"},"165NA":{"price":9.35,"unit":"FT"},"200SSS":{"price":54.9,"unit":"FT"},"158NDKB":{"price":17.45,"unit":"FT"},"165NDKB":{"price":12.6,"unit":"FT"},"201NA":{"price":8.75,"unit":"FT"},"158SA":{"price":14.35,"unit":"FT"},"165SA":{"price":13.55,"unit":"FT"},"201NDKB":{"price":11.8,"unit":"FT"},"158SDKB":{"price":18.15,"unit":"FT"},"165SDKB":{"price":16.9,"unit":"FT"},"202NA":{"price":14.35,"unit":"FT"},"158VA":{"price":12.4,"unit":"FT"},"170NA":{"price":12.9,"unit":"FT"},"202NDKB":{"price":19.15,"unit":"FT"},"158VDKB":{"price":16.55,"unit":"FT"},"170NDKB":{"price":17.85,"unit":"FT"},"203NA":{"price":23.05,"unit":"FT"},"159MA":{"price":18.75,"unit":"FT"},"170PA":{"price":11.9,"unit":"FT"},"203NDKB":{"price":28.1,"unit":"FT"},"159MDKB":{"price":23.0,"unit":"FT"},"170PDKB":{"price":16.9,"unit":"FT"},"211":{"price":13.85,"unit":"FT"},"160S":{"price":5.05,"unit":"FT"},"170SA":{"price":13.8,"unit":"FT"},"211DKB":{"price":22.15,"unit":"FT"},"160SA":{"price":7.65,"unit":"FT"},"170SDKB":{"price":18.75,"unit":"FT"},"215":{"price":11.65,"unit":"FT"},"160SDKB":{"price":8.65,"unit":"FT"},"170VA":{"price":11.45,"unit":"FT"},"215DKB":{"price":16.7,"unit":"FT"},"160U":{"price":7.65,"unit":"FT"},"170VDKB":{"price":16.4,"unit":"FT"},"160UA":{"price":9.5,"unit":"FT"},"172NA":{"price":9.7,"unit":"FT"},"160UDKB":{"price":11.05,"unit":"FT"},"172NDKB":{"price":14.8,"unit":"FT"},"172SA":{"price":11.5,"unit":"FT"},"172SDKB":{"price":16.45,"unit":"FT"},"160V":{"price":3.3,"unit":"FT"},"172VA":{"price":8.05,"unit":"FT"},"160V-GR":{"price":3.3,"unit":"FT"},"172VDKB":{"price":13.2,"unit":"FT"},"160VA":{"price":5.25,"unit":"FT"},"176A":{"price":10.25,"unit":"FT"},"160VA-GR":{"price":5.25,"unit":"FT"},"176DKB":{"price":14.5,"unit":"FT"},"160VDKB":{"price":6.45,"unit":"FT"},"178SA":{"price":10.9,"unit":"FT"},"160VDKB-GR":{"price":6.45,"unit":"FT"},"178SDKB":{"price":15.05,"unit":"FT"},"161NA":{"price":10.7,"unit":"FT"},"185P":{"price":5.15,"unit":"FT"},"161NDKB":{"price":12.2,"unit":"FT"},"185PA":{"price":6.9,"unit":"FT"},"161SA":{"price":9.0,"unit":"FT"},"185PDKB":{"price":8.75,"unit":"FT"},"161SDKB":{"price":10.6,"unit":"FT"},"197NA":{"price":15.25,"unit":"FT"},"161UA":{"price":11.35,"unit":"FT"},"197NDKB":{"price":18.7,"unit":"FT"},"161UDKB":{"price":12.95,"unit":"FT"},"198NA":{"price":10.9,"unit":"FT"},"161VA":{"price":7.3,"unit":"FT"},"198NDKB":{"price":14.55,"unit":"FT"},"161VDKB":{"price":8.95,"unit":"FT"},"199NA":{"price":13.65,"unit":"FT"},"162S":{"price":5.05,"unit":"FT"},"199NDKB":{"price":16.9,"unit":"FT"},"162SA":{"price":7.65,"unit":"FT"},"200NA":{"price":8.65,"unit":"FT"},"162SDKB":{"price":8.65,"unit":"FT"},"200NDKB":{"price":11.8,"unit":"FT"},"164V":{"price":3.3,"unit":"FT"},"200NSS":{"price":53.2,"unit":"FT"},"164VA":{"price":5.25,"unit":"FT"},"200SA":{"price":12.95,"unit":"FT"},"164VDKB":{"price":6.45,"unit":"FT"},"200SDKB":{"price":16.1,"unit":"FT"},"313VDKB":{"price":15.6,"unit":"FT"},"315":{"price":17.55,"unit":"FT"},"327":{"price":18.45,"unit":"FT"},"315BR":{"price":194.65,"unit":"FT"},"327BR":{"price":256.0,"unit":"FT"},"315DKB":{"price":22.15,"unit":"FT"},"327DKB":{"price":26.05,"unit":"FT"},"318V":{"price":10.65,"unit":"FT"},"319V":{"price":12.7,"unit":"FT"},"319VDKB":{"price":19.05,"unit":"FT"},"319ET":{"price":11.7,"unit":"FT"},"319ETDKB":{"price":15.65,"unit":"FT"},"319ET6":{"price":12.5,"unit":"FT"},"319ET6DKB":{"price":16.55,"unit":"FT"},"319EV":{"price":10.65,"unit":"FT"},"319EVDKB":{"price":13.85,"unit":"FT"},"336P":{"price":4.5,"unit":"FT"},"340P":{"price":4.2,"unit":"FT"},"350":{"price":23.3,"unit":"FT"},"321":{"price":11.45,"unit":"FT"},"350BR":{"price":291.5,"unit":"FT"},"321DKB":{"price":15.45,"unit":"FT"},"350DKB":{"price":32.55,"unit":"FT"},"322":{"price":15.25,"unit":"FT"},"355":{"price":32.25,"unit":"FT"},"322DKB":{"price":20.1,"unit":"FT"},"355DKB":{"price":39.25,"unit":"FT"},"323":{"price":17.7,"unit":"FT"},"384B":{"price":6.25,"unit":"FT"},"323DKB":{"price":22.45,"unit":"FT"},"384BA":{"price":8.3,"unit":"FT"},"324":{"price":34.25,"unit":"FT"},"384BDKB":{"price":9.75,"unit":"FT"},"254P":{"price":20.1,"unit":"FT"},"324DKB":{"price":48.4,"unit":"FT"},"398":{"price":26.6,"unit":"FT"},"254PDKB":{"price":24.15,"unit":"FT"},"325":{"price":39.2,"unit":"FT"},"399":{"price":27.7,"unit":"FT"},"312V":{"price":6.95,"unit":"FT"},"325BR":{"price":460.15,"unit":"FT"},"400":{"price":32.25,"unit":"FT"},"312VDKB":{"price":11.4,"unit":"FT"},"325DKB":{"price":52.75,"unit":"FT"},"401":{"price":23.55,"unit":"FT"},"325HD":{"price":59.4,"unit":"FT"},"402":{"price":24.2,"unit":"FT"},"325HDDKB":{"price":72.6,"unit":"FT"},"402X400X402":{"price":80.65,"unit":"FT"},"313VA":{"price":11.3,"unit":"FT"},"402X400X400X402":{"price":112.9,"unit":"FT"},"404":{"price":19.3,"unit":"FT"},"424DKB":{"price":22.65,"unit":"FT"},"432DKB":{"price":85.6,"unit":"FT"},"404DKB":{"price":25.3,"unit":"FT"},"424E":{"price":15.45,"unit":"FT"},"WA432":{"price":98.55,"unit":"FT"},"407":{"price":25.45,"unit":"FT"},"424EDKB":{"price":22.45,"unit":"FT"},"WA432DKB":{"price":119.2,"unit":"FT"},"410":{"price":10.55,"unit":"FT"},"425":{"price":22.0,"unit":"FT"},"434":{"price":12.95,"unit":"FT"},"410DKB":{"price":15.25,"unit":"FT"},"425BR":{"price":318.55,"unit":"FT"},"434DKB":{"price":21.85,"unit":"FT"},"411":{"price":13.95,"unit":"FT"},"425DKB":{"price":31.9,"unit":"FT"},"435":{"price":19.0,"unit":"FT"},"411DKB":{"price":18.85,"unit":"FT"},"425E":{"price":19.2,"unit":"FT"},"435DKB":{"price":29.4,"unit":"FT"},"412":{"price":18.3,"unit":"FT"},"425EDKB":{"price":28.95,"unit":"FT"},"436":{"price":23.95,"unit":"FT"},"412DKB":{"price":26.05,"unit":"FT"},"425HD":{"price":54.6,"unit":"FT"},"436DKB":{"price":33.5,"unit":"FT"},"412SS":{"price":195.9,"unit":"FT"},"425HDDKB":{"price":70.0,"unit":"FT"},"437":{"price":32.35,"unit":"FT"},"413":{"price":12.95,"unit":"FT"},"426":{"price":27.85,"unit":"FT"},"437DKB":{"price":44.8,"unit":"FT"},"413DKB":{"price":21.85,"unit":"FT"},"426BR":{"price":371.8,"unit":"FT"},"438":{"price":38.95,"unit":"FT"},"413SS":{"price":194.65,"unit":"FT"},"426DKB":{"price":37.85,"unit":"FT"},"438DKB":{"price":51.0,"unit":"FT"},"414":{"price":10.65,"unit":"FT"},"426E":{"price":23.75,"unit":"FT"},"439":{"price":45.05,"unit":"FT"},"414DKB":{"price":15.1,"unit":"FT"},"426EDKB":{"price":33.55,"unit":"FT"},"439DKB":{"price":57.8,"unit":"FT"},"415":{"price":24.45,"unit":"FT"},"426HD":{"price":65.85,"unit":"FT"},"440":{"price":53.8,"unit":"FT"},"415BR":{"price":287.9,"unit":"FT"},"426HDDKB":{"price":83.5,"unit":"FT"},"440DKB":{"price":66.65,"unit":"FT"},"415DKB":{"price":30.1,"unit":"FT"},"427":{"price":37.85,"unit":"FT"},"457":{"price":31.6,"unit":"FT"},"416":{"price":10.95,"unit":"FT"},"427BR":{"price":460.3,"unit":"FT"},"457DKB":{"price":44.9,"unit":"FT"},"416DKB":{"price":18.55,"unit":"FT"},"427DKB":{"price":46.3,"unit":"FT"},"458":{"price":44.9,"unit":"FT"},"417":{"price":18.6,"unit":"FT"},"427E":{"price":32.75,"unit":"FT"},"458DKB":{"price":48.15,"unit":"FT"},"417DKB":{"price":22.15,"unit":"FT"},"427EDKB":{"price":42.25,"unit":"FT"},"484BR":{"price":277.2,"unit":"FT"},"428BR":{"price":655.1,"unit":"FT"},"512":{"price":24.45,"unit":"FT"},"428E":{"price":41.65,"unit":"FT"},"512DKB":{"price":33.95,"unit":"FT"},"428EDKB":{"price":56.05,"unit":"FT"},"512SS":{"price":206.5,"unit":"FT"},"429BR":{"price":702.1,"unit":"FT"},"513":{"price":19.0,"unit":"FT"},"429E":{"price":46.6,"unit":"FT"},"513BR":{"price":271.65,"unit":"FT"},"429EDKB":{"price":62.85,"unit":"FT"},"513DKB":{"price":29.4,"unit":"FT"},"430BR":{"price":743.6,"unit":"FT"},"513HD":{"price":49.05,"unit":"FT"},"430E":{"price":52.55,"unit":"FT"},"513HDDKB":{"price":61.95,"unit":"FT"},"430EDKB":{"price":68.7,"unit":"FT"},"513SS":{"price":212.65,"unit":"FT"},"431":{"price":61.05,"unit":"FT"},"515":{"price":17.7,"unit":"FT"},"431DKB":{"price":79.4,"unit":"FT"},"515DKB":{"price":22.75,"unit":"FT"},"WA431":{"price":95.05,"unit":"FT"},"424":{"price":15.6,"unit":"FT"},"WA431DKB":{"price":113.3,"unit":"FT"},"424BR":{"price":238.4,"unit":"FT"},"432":{"price":64.35,"unit":"FT"},"C607A":{"price":8.4,"unit":"FT"},"G622DKB":{"price":33.1,"unit":"FT"},"C607A-BB":{"price":8.4,"unit":"FT"},"H623A":{"price":28.5,"unit":"FT"},"C607DKB":{"price":11.65,"unit":"FT"},"H623A-BB":{"price":28.5,"unit":"FT"},"600":{"price":8.75,"unit":"FT"},"D608A":{"price":12.0,"unit":"FT"},"H623DKB":{"price":33.5,"unit":"FT"},"D608A-BB":{"price":12.0,"unit":"FT"},"I-624A":{"price":37.2,"unit":"FT"},"600-BB":{"price":8.75,"unit":"FT"},"D608DKB":{"price":15.45,"unit":"FT"},"I-624A-BB":{"price":37.2,"unit":"FT"},"G610A":{"price":27.2,"unit":"FT"},"I-624DKB":{"price":41.55,"unit":"FT"},"600A":{"price":9.3,"unit":"FT"},"G610A-BB":{"price":27.2,"unit":"FT"},"A625A":{"price":7.4,"unit":"FT"},"G610DKB":{"price":31.9,"unit":"FT"},"A625A-BB":{"price":7.4,"unit":"FT"},"600A-BB":{"price":9.3,"unit":"FT"},"G611A":{"price":37.85,"unit":"FT"},"A625DKB":{"price":12.4,"unit":"FT"},"G611A-BB":{"price":37.85,"unit":"FT"},"A626A":{"price":7.15,"unit":"FT"},"600DKB":{"price":12.4,"unit":"FT"},"G611DKB":{"price":42.5,"unit":"FT"},"A626A-BB":{"price":7.15,"unit":"FT"},"H612A":{"price":28.15,"unit":"FT"},"A626DKB":{"price":10.45,"unit":"FT"},"601":{"price":12.35,"unit":"FT"},"H612A-BB":{"price":28.15,"unit":"FT"},"C627A":{"price":11.55,"unit":"FT"},"601-BB":{"price":12.35,"unit":"FT"},"H612DKB":{"price":33.1,"unit":"FT"},"C627A-BB":{"price":11.55,"unit":"FT"},"601A":{"price":13.15,"unit":"FT"},"612SS":{"price":306.8,"unit":"FT"},"C627DKB":{"price":14.8,"unit":"FT"},"613":{"price":23.9,"unit":"FT"},"OV633A":{"price":11.85,"unit":"FT"},"601DKB":{"price":16.2,"unit":"FT"},"613BR":{"price":371.8,"unit":"FT"},"OV633A-BB":{"price":11.85,"unit":"FT"},"602A":{"price":9.05,"unit":"FT"},"613DKB":{"price":33.5,"unit":"FT"},"OV633DKB":{"price":15.15,"unit":"FT"},"602A-BB":{"price":9.05,"unit":"FT"},"613HD":{"price":60.8,"unit":"FT"},"OV634A":{"price":10.55,"unit":"FT"},"602DKB":{"price":12.15,"unit":"FT"},"613HDDKB":{"price":77.35,"unit":"FT"},"OV634A-BB":{"price":10.55,"unit":"FT"},"603A":{"price":13.3,"unit":"FT"},"613SS":{"price":312.8,"unit":"FT"},"OV634DKB":{"price":13.65,"unit":"FT"},"603A-BB":{"price":13.3,"unit":"FT"},"H614A":{"price":41.8,"unit":"FT"},"A635":{"price":8.55,"unit":"FT"},"603DKB":{"price":16.55,"unit":"FT"},"H614A-BB":{"price":41.8,"unit":"FT"},"A635-BB":{"price":8.55,"unit":"FT"},"A605A":{"price":6.85,"unit":"FT"},"H614DKB":{"price":46.6,"unit":"FT"},"D648":{"price":12.2,"unit":"FT"},"I-615A":{"price":36.65,"unit":"FT"},"D648-BB":{"price":12.2,"unit":"FT"},"A605A-BB":{"price":6.85,"unit":"FT"},"I-615A-BB":{"price":36.65,"unit":"FT"},"D648DKB":{"price":16.15,"unit":"FT"},"I-615DKB":{"price":41.25,"unit":"FT"},"653":{"price":26.05,"unit":"FT"},"A605DKB":{"price":10.0,"unit":"FT"},"I-616A":{"price":45.75,"unit":"FT"},"653DKB":{"price":37.85,"unit":"FT"},"I-616A-BB":{"price":45.75,"unit":"FT"},"654":{"price":19.2,"unit":"FT"},"B606A":{"price":7.7,"unit":"FT"},"I-616DKB":{"price":50.6,"unit":"FT"},"654DKB":{"price":34.35,"unit":"FT"},"D620A":{"price":12.25,"unit":"FT"},"655":{"price":27.2,"unit":"FT"},"B606A-BB":{"price":7.7,"unit":"FT"},"D620A-BB":{"price":12.25,"unit":"FT"},"657":{"price":24.5,"unit":"FT"},"D620DKB":{"price":16.35,"unit":"FT"},"657DKB":{"price":38.75,"unit":"FT"},"B606DKB":{"price":10.9,"unit":"FT"},"G622A":{"price":28.35,"unit":"FT"},"659":{"price":31.9,"unit":"FT"},"G622A-BB":{"price":28.35,"unit":"FT"},"659DKB":{"price":43.75,"unit":"FT"},"672A":{"price":10.9,"unit":"FT"},"803V":{"price":26.3,"unit":"FT"},"803VDKB":{"price":35.65,"unit":"FT"},"672A-BB":{"price":10.9,"unit":"FT"},"804V":{"price":25.0,"unit":"FT"},"C697A":{"price":13.95,"unit":"FT"},"804VDKB":{"price":34.5,"unit":"FT"},"672DKB":{"price":14.8,"unit":"FT"},"C697DKB":{"price":17.7,"unit":"FT"},"812SS":{"price":395.5,"unit":"FT"},"D698A":{"price":17.9,"unit":"FT"},"813":{"price":38.95,"unit":"FT"},"672NA":{"price":11.4,"unit":"FT"},"D698DKB":{"price":21.7,"unit":"FT"},"813BR":{"price":584.1,"unit":"FT"},"C699A":{"price":16.9,"unit":"FT"},"813DKB":{"price":51.0,"unit":"FT"},"672NDKB":{"price":14.9,"unit":"FT"},"C699DKB":{"price":20.7,"unit":"FT"},"813SS":{"price":395.75,"unit":"FT"},"700EN":{"price":12.95,"unit":"FT"},"672PA":{"price":7.95,"unit":"FT"},"700ENDKB":{"price":16.55,"unit":"FT"},"672PDKB":{"price":11.55,"unit":"FT"},"700ES":{"price":13.85,"unit":"FT"},"673A":{"price":12.45,"unit":"FT"},"700ESDKB":{"price":17.45,"unit":"FT"},"673A-BB":{"price":12.45,"unit":"FT"},"700EU":{"price":14.45,"unit":"FT"},"673DKB":{"price":16.55,"unit":"FT"},"700EUDKB":{"price":18.0,"unit":"FT"},"674A":{"price":16.4,"unit":"FT"},"700N":{"price":15.05,"unit":"FT"},"883SS":{"price":383.5,"unit":"FT"},"674A-BB":{"price":16.4,"unit":"FT"},"700NA":{"price":15.8,"unit":"FT"},"884B/SV":{"price":19.85,"unit":"FT"},"674DKB":{"price":20.1,"unit":"FT"},"700NDKB":{"price":19.3,"unit":"FT"},"884B/SVDKB":{"price":28.1,"unit":"FT"},"675A":{"price":11.85,"unit":"FT"},"700S":{"price":16.05,"unit":"FT"},"884V":{"price":30.4,"unit":"FT"},"700SA":{"price":16.8,"unit":"FT"},"884VDKB":{"price":38.7,"unit":"FT"},"675A-BB":{"price":11.85,"unit":"FT"},"700SDKB":{"price":20.85,"unit":"FT"},"884SS":{"price":383.5,"unit":"FT"},"700U":{"price":16.15,"unit":"FT"},"884-6V":{"price":80.25,"unit":"FT"},"675DKB":{"price":16.85,"unit":"FT"},"700UA":{"price":17.15,"unit":"FT"},"884-6VDKB":{"price":98.0,"unit":"FT"},"700UDKB":{"price":21.05,"unit":"FT"},"884-7V":{"price":80.25,"unit":"FT"},"678A":{"price":13.35,"unit":"FT"},"705EV":{"price":11.7,"unit":"FT"},"884-7VDKB":{"price":98.0,"unit":"FT"},"678A-BB":{"price":13.35,"unit":"FT"},"705EVDKB":{"price":15.55,"unit":"FT"},"884-8V":{"price":80.25,"unit":"FT"},"678DKB":{"price":18.9,"unit":"FT"},"705V":{"price":13.6,"unit":"FT"},"884-8VDKB":{"price":98.0,"unit":"FT"},"679A":{"price":15.15,"unit":"FT"},"705VA":{"price":14.7,"unit":"FT"},"890V":{"price":26.15,"unit":"FT"},"679A-BB":{"price":15.15,"unit":"FT"},"705VDKB":{"price":18.6,"unit":"FT"},"890VDKB":{"price":35.4,"unit":"FT"},"679DKB":{"price":20.1,"unit":"FT"},"706E":{"price":14.25,"unit":"FT"},"896V-ADJ":{"price":29.8,"unit":"FT"},"706E-BB":{"price":14.25,"unit":"FT"},"896VDKB-ADJ":{"price":36.65,"unit":"FT"},"712SS":{"price":357.6,"unit":"FT"},"896HDV":{"price":41.0,"unit":"FT"},"713":{"price":32.35,"unit":"FT"},"896HDVDKB":{"price":53.2,"unit":"FT"},"713BR":{"price":425.2,"unit":"FT"},"896V":{"price":21.3,"unit":"FT"},"713DKB":{"price":44.75,"unit":"FT"},"896VDKB":{"price":27.2,"unit":"FT"},"713SS":{"price":357.6,"unit":"FT"},"896SS":{"price":377.95,"unit":"FT"},"897V":{"price":31.1,"unit":"FT"},"1015V":{"price":4.5,"unit":"FT"},"897VDKB":{"price":40.1,"unit":"FT"},"1015VDKB":{"price":7.5,"unit":"FT"},"8013":{"price":49.9,"unit":"FT"},"898V":{"price":24.1,"unit":"FT"},"1038NA":{"price":32.5,"unit":"FT"},"8013DKB":{"price":64.35,"unit":"FT"},"898VDKB":{"price":32.95,"unit":"FT"},"1038NDKB":{"price":39.55,"unit":"FT"},"8113":{"price":53.2,"unit":"FT"},"912SS":{"price":448.6,"unit":"FT"},"8113DKB":{"price":67.85,"unit":"FT"},"913":{"price":45.05,"unit":"FT"},"WA8113":{"price":104.55,"unit":"FT"},"913DKB":{"price":57.8,"unit":"FT"},"1392SP":{"price":62.55,"unit":"FT"},"WA8113DKB":{"price":118.65,"unit":"FT"},"913SS":{"price":448.6,"unit":"FT"},"2014RA":{"price":19.55,"unit":"FT"},"950V":{"price":22.45,"unit":"FT"},"2014RDKB":{"price":22.45,"unit":"FT"},"950VDKB":{"price":28.35,"unit":"FT"},"951":{"price":37.05,"unit":"FT"},"8135V":{"price":20.4,"unit":"FT"},"951DKB":{"price":47.6,"unit":"FT"},"8135VDKB":{"price":27.0,"unit":"FT"},"953":{"price":25.55,"unit":"FT"},"953DKB":{"price":35.6,"unit":"FT"},"8213":{"price":64.95,"unit":"FT"},"954":{"price":44.1,"unit":"FT"},"8213DKB":{"price":82.65,"unit":"FT"},"954DKB":{"price":55.9,"unit":"FT"},"WA8213":{"price":133.35,"unit":"FT"},"955":{"price":32.25,"unit":"FT"},"WA8213DKB":{"price":147.55,"unit":"FT"},"955DKB":{"price":42.85,"unit":"FT"},"8413":{"price":25.2,"unit":"FT"},"957":{"price":60.2,"unit":"FT"},"8413DKB":{"price":33.35,"unit":"FT"},"957DKB":{"price":72.6,"unit":"FT"},"8423V":{"price":18.45,"unit":"FT"},"959":{"price":40.1,"unit":"FT"},"8423VDKB":{"price":27.4,"unit":"FT"},"959DKB":{"price":50.2,"unit":"FT"},"2525C":{"price":1.6,"unit":"FT"},"8424":{"price":29.2,"unit":"FT"},"960":{"price":82.65,"unit":"FT"},"8424DKB":{"price":37.5,"unit":"FT"},"960DKB":{"price":94.4,"unit":"FT"},"8425":{"price":33.35,"unit":"FT"},"961":{"price":61.7,"unit":"FT"},"8425DKB":{"price":43.4,"unit":"FT"},"5020C":{"price":4.15,"unit":"FT"},"961DKB":{"price":74.05,"unit":"FT"},"8426":{"price":36.65,"unit":"FT"},"5020CL":{"price":5.05,"unit":"FT"},"962":{"price":54.0,"unit":"FT"},"8426DKB":{"price":48.4,"unit":"FT"},"5040C":{"price":1.6,"unit":"FT"},"962DKB":{"price":67.85,"unit":"FT"},"8427":{"price":41.0,"unit":"FT"},"5050C":{"price":3.7,"unit":"FT"},"8427DKB":{"price":53.2,"unit":"FT"},"8428":{"price":45.15,"unit":"FT"},"8428BR":{"price":596.1,"unit":"FT"},"8428DKB":{"price":59.05,"unit":"FT"},"5060C":{"price":1.6,"unit":"FT"},"5070B":{"price":2.75,"unit":"FT"},"8429":{"price":50.2,"unit":"FT"},"5070CL":{"price":3.15,"unit":"FT"},"8429BR":{"price":637.3,"unit":"FT"},"1012SS":{"price":489.75,"unit":"FT"},"5075C":{"price":2.75,"unit":"FT"},"8429DKB":{"price":65.55,"unit":"FT"},"1013":{"price":53.75,"unit":"FT"},"5075CL":{"price":3.2,"unit":"FT"},"8430":{"price":58.4,"unit":"FT"},"1013DKB":{"price":66.65,"unit":"FT"},"8430BR":{"price":661.25,"unit":"FT"},"1013SS":{"price":489.75,"unit":"FT"},"8430DKB":{"price":72.6,"unit":"FT"},"8433V":{"price":28.35,"unit":"FT"},"9600A-BB":{"price":26.2,"unit":"FT"},"8433VDKB":{"price":40.1,"unit":"FT"},"9600DKB":{"price":15.95,"unit":"FT"},"8434V":{"price":31.9,"unit":"FT"},"8434VDKB":{"price":43.7,"unit":"FT"},"9605A":{"price":10.55,"unit":"FT"},"8435V":{"price":35.4,"unit":"FT"},"9605A-BB":{"price":10.55,"unit":"FT"},"8435VDKB":{"price":47.2,"unit":"FT"},"8436V":{"price":40.1,"unit":"FT"},"8436VDKB":{"price":53.2,"unit":"FT"},"9605DKB":{"price":13.6,"unit":"FT"},"8437V":{"price":46.05,"unit":"FT"},"8437VDKB":{"price":59.05,"unit":"FT"},"9700":{"price":16.1,"unit":"FT"},"8475":{"price":59.65,"unit":"FT"},"9700A":{"price":16.8,"unit":"FT"},"8475DKB":{"price":73.7,"unit":"FT"},"9700DKB":{"price":20.85,"unit":"FT"},"8513":{"price":29.5,"unit":"FT"},"8513DKB":{"price":38.4,"unit":"FT"},"8533V":{"price":32.5,"unit":"FT"},"81369N":{"price":73.7,"unit":"FT"},"8533VDKB":{"price":44.9,"unit":"FT"},"81369NDKB":{"price":81.5,"unit":"FT"},"8613":{"price":35.4,"unit":"FT"},"8613DKB":{"price":45.4,"unit":"FT"},"8633V":{"price":36.65,"unit":"FT"},"8633VDKB":{"price":48.4,"unit":"FT"},"8713":{"price":37.5,"unit":"FT"},"8713DKB":{"price":49.3,"unit":"FT"},"8813":{"price":41.65,"unit":"FT"},"8813DKB":{"price":54.9,"unit":"FT"},"8913":{"price":48.4,"unit":"FT"},"8913DKB":{"price":61.95,"unit":"FT"},"9115A":{"price":34.2,"unit":"FT"},"9115DKB":{"price":44.5,"unit":"FT"},"9125A":{"price":34.2,"unit":"FT"},"9125DKB":{"price":44.5,"unit":"FT"},"9125SS":{"price":115.2,"unit":"FT"},"9600":{"price":12.65,"unit":"FT"},"9600-BB":{"price":12.65,"unit":"FT"},"9600A":{"price":13.1,"unit":"FT"},"9545":{"price":16.0,"unit":"SET"},"L-TB-ANEM1.75":{"price":4.35,"unit":"EA"},"L-TORX-TB-ANEM1.75":{"price":6.55,"unit":"EA"},"HD1100A-ETW8":{"price":726.0,"unit":"EA"},"HD1100A-ETW8-MOLEX":{"price":785.0,"unit":"EA"},"HD1100A-ETW12":{"price":800.0,"unit":"EA"},"HD1100A-ETW12-MOLEX":{"price":859.0,"unit":"EA"},"HD1100DKB-ETW8":{"price":737.0,"unit":"EA"},"HD1100DKB-ETW8-MOLEX":{"price":795.0,"unit":"EA"},"HD1100DKB-ETW12":{"price":810.0,"unit":"EA"},"HD1100DKB-ETW12-MOLEX":{"price":870.0,"unit":"EA"},"HD2400A-ETW8":{"price":726.0,"unit":"EA"},"HD2400A-ETW8-MOLEX":{"price":785.0,"unit":"EA"},"HD2400A-ETW12":{"price":800.0,"unit":"EA"},"HD2400A-ETW12-MOLEX":{"price":859.0,"unit":"EA"},"HD2400DKB-ETW8":{"price":737.0,"unit":"EA"},"HD2400DKB-ETW8-MOLEX":{"price":795.0,"unit":"EA"},"HD2400DKB-ETW12":{"price":810.0,"unit":"EA"},"HD2400DKB-ETW12-MOLEX":{"price":870.0,"unit":"EA"},"HD2700A-ETW8":{"price":737.0,"unit":"EA"},"HD2700A-ETW8-MOLEX":{"price":795.0,"unit":"EA"},"HD2700A-ETW12":{"price":810.0,"unit":"EA"},"HD2700A-ETW12-MOLEX":{"price":870.0,"unit":"EA"},"HD2700DKB-ETW8":{"price":742.0,"unit":"EA"},"HD2700DKB-ETW8-MOLEX":{"price":800.0,"unit":"EA"},"HD2700DKB-ETW12":{"price":816.0,"unit":"EA"},"HD2700DKB-ETW12-MOLEX":{"price":875.0,"unit":"EA"},"BAR1":{"price":11.8,"unit":"FT"},"BAR2":{"price":12.15,"unit":"FT"},"BAR4":{"price":17.1,"unit":"FT"},"BAR6SS":{"price":43.75,"unit":"FT"},"5050":{"price":1.6,"unit":"FT"},"GR":{"price":32.0,"unit":"FT"},"13T":{"price":5.0,"unit":"FT"},"113N":{"price":5.0,"unit":"FT"},"602":{"price":4.65,"unit":"FT"},"B606":{"price":4.65,"unit":"FT"},"92T":{"price":4.05,"unit":"FT"},"99T":{"price":4.05,"unit":"FT"},"103N":{"price":6.3,"unit":"FT"},"108N":{"price":6.3,"unit":"FT"},"303N":{"price":6.3,"unit":"FT"},"603":{"price":6.6,"unit":"FT"},"13T6":{"price":4.65,"unit":"FT"},"106N":{"price":4.65,"unit":"FT"},"141N":{"price":4.65,"unit":"FT"},"170N":{"price":4.65,"unit":"FT"},"680":{"price":10.75,"unit":"FT"},"683":{"price":10.75,"unit":"FT"},"107N":{"price":5.25,"unit":"FT"},"133N":{"price":5.25,"unit":"FT"},"165N":{"price":5.25,"unit":"FT"},"9605":{"price":5.95,"unit":"FT"},"109N":{"price":4.5,"unit":"FT"},"122N":{"price":4.5,"unit":"FT"},"110N":{"price":3.4,"unit":"FT"},"120N":{"price":3.4,"unit":"FT"},"127N":{"price":3.4,"unit":"FT"},"114N":{"price":4.3,"unit":"FT"},"130N":{"price":4.3,"unit":"FT"},"OV633":{"price":4.1,"unit":"FT"},"OV634":{"price":4.1,"unit":"FT"},"672":{"price":4.1,"unit":"FT"},"5V":{"price":4.1,"unit":"FT"},"6V":{"price":4.1,"unit":"FT"},"13V":{"price":4.1,"unit":"FT"},"115N":{"price":4.1,"unit":"FT"},"125N":{"price":4.1,"unit":"FT"},"673":{"price":2.5,"unit":"FT"},"674":{"price":2.5,"unit":"FT"},"675":{"price":2.5,"unit":"FT"},"678":{"price":2.5,"unit":"FT"},"92V":{"price":2.5,"unit":"FT"},"99V":{"price":2.5,"unit":"FT"},"134N":{"price":3.7,"unit":"FT"},"137N":{"price":3.7,"unit":"FT"},"679":{"price":4.3,"unit":"FT"},"35V":{"price":5.9,"unit":"FT"},"36V":{"price":5.9,"unit":"FT"},"161N":{"price":5.9,"unit":"FT"},"143N":{"price":3.1,"unit":"FT"},"158N":{"price":3.1,"unit":"FT"},"172N":{"price":3.1,"unit":"FT"},"320N":{"price":3.1,"unit":"FT"},"197N":{"price":6.35,"unit":"FT"},"199N":{"price":6.35,"unit":"FT"},"9590N":{"price":6.35,"unit":"FT"},"200N":{"price":4.5,"unit":"FT"},"201N":{"price":4.5,"unit":"FT"},"198N":{"price":4.5,"unit":"FT"},"220N":{"price":1.5,"unit":"FT"},"222N":{"price":1.5,"unit":"FT"},"225N":{"price":1.5,"unit":"FT"},"229N":{"price":1.5,"unit":"FT"},"158V":{"price":1.5,"unit":"FT"},"170V":{"price":1.5,"unit":"FT"},"335N":{"price":6.3,"unit":"FT"},"420N":{"price":6.3,"unit":"FT"},"423N":{"price":6.3,"unit":"FT"},"520N":{"price":6.3,"unit":"FT"},"161V":{"price":6.3,"unit":"FT"},"1038N":{"price":6.3,"unit":"FT"},"106S":{"price":1.5,"unit":"FT"},"140S":{"price":1.5,"unit":"FT"},"141S":{"price":1.5,"unit":"FT"},"144S":{"price":1.5,"unit":"FT"},"172V":{"price":1.5,"unit":"FT"},"320V":{"price":1.5,"unit":"FT"},"705":{"price":1.5,"unit":"FT"},"705E":{"price":1.5,"unit":"FT"},"107S":{"price":6.3,"unit":"FT"},"165S":{"price":6.3,"unit":"FT"},"110S":{"price":4.3,"unit":"FT"},"120S":{"price":4.3,"unit":"FT"},"127S":{"price":4.3,"unit":"FT"},"114S":{"price":7.95,"unit":"FT"},"130S":{"price":7.95,"unit":"FT"},"134S":{"price":6.6,"unit":"FT"},"137S":{"price":6.6,"unit":"FT"},"143S":{"price":3.35,"unit":"FT"},"158S":{"price":3.35,"unit":"FT"},"172S":{"price":3.35,"unit":"FT"},"320S":{"price":3.35,"unit":"FT"},"9700S":{"price":3.35,"unit":"FT"},"200S":{"price":7.1,"unit":"FT"},"9115S":{"price":8.45,"unit":"FT"},"9125S":{"price":8.45,"unit":"FT"},"150U":{"price":16.0,"unit":"FT"},"161U":{"price":16.0,"unit":"FT"},"420":{"price":16.0,"unit":"FT"},"423":{"price":16.0,"unit":"FT"},"520":{"price":16.0,"unit":"FT"},"9220":{"price":16.0,"unit":"FT"},"229SS":{"price":32.0,"unit":"FT"},"BOTTOM":{"price":5.5,"unit":"FT"},"NEOPRENE":{"price":5.5,"unit":"FT"},"170P":{"price":2.15,"unit":"FT"},"701P":{"price":2.15,"unit":"FT"},"701EP":{"price":2.15,"unit":"FT"},"SIDE":{"price":5.05,"unit":"FT"}}};
+
+// ---- State ----
+let activeBrand = 'zero';
+let activeBatchBrand = 'zero';
+
+function setActiveBrand(brand, el) {
+  activeBrand = brand;
+  document.querySelectorAll('.brand-tabs')[0].querySelectorAll('.brand-tab').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  const inp = document.getElementById('part-input');
+  inp.placeholder = brand === 'zero' ? 'Enter ZERO part number (e.g. 55, 18, 8303)' : 'Enter PEMKO part number (e.g. S88, B75, 351)';
+  document.getElementById('result').innerHTML = '';
+}
+
+function setActiveBatchBrand(brand, el) {
+  activeBatchBrand = brand;
+  document.querySelectorAll('.brand-tabs')[1].querySelectorAll('.brand-tab').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('batch-result').innerHTML = '';
+}
+
+function normalize(str) {
+  return str.trim().toUpperCase().replace(/\s+/g, '');
+}
+
+function lookupNGP(brand, partNum) {
+  const key = normalize(partNum);
+  const map = brand === 'zero' ? DATA.zero : DATA.pemko;
+  return map[key] || null;
+}
+
+function lookupPrice(ngpPart) {
+  const key = normalize(ngpPart);
+
+  // Direct lookup
+  if (DATA.prices[key]) return DATA.prices[key];
+
+  // Try with "A" suffix (mill aluminum is default/standard)
+  if (DATA.prices[key + 'A']) return DATA.prices[key + 'A'];
+
+  // Try stripping trailing letter that might be a finish
+  const stripped = key.replace(/[A-Z]$/, '');
+  if (stripped.length >= 2 && DATA.prices[stripped]) return DATA.prices[stripped];
+
+  // Try base model before dash (for size variants like 220NA-36")
+  const base = key.split('-')[0];
+  if (base !== key && DATA.prices[base + 'A']) return { ...DATA.prices[base + 'A'], note: 'per ft (size not included)' };
+
+  return null;
+}
+
+function formatPrice(priceObj) {
+  if (!priceObj) return null;
+  const unit = priceObj.unit === 'FT' ? 'per ft.' :
+               priceObj.unit === 'EA' ? 'each' :
+               priceObj.unit === 'ST' ? 'per set' :
+               priceObj.unit === 'BX' ? 'per box' :
+               priceObj.unit === 'PK' ? 'per pack' :
+               priceObj.unit === 'RL' ? 'per roll' :
+               '/ ' + priceObj.unit;
+  return `$${priceObj.price.toFixed(2)} ${unit}`;
+}
+
+function doLookup() {
+  const input = document.getElementById('part-input').value.trim();
+  const resultDiv = document.getElementById('result');
+
+  if (!input) {
+    resultDiv.innerHTML = '';
+    return;
+  }
+
+  const ngpRaw = lookupNGP(activeBrand, input);
+  const brandLabel = activeBrand === 'zero' ? 'ZERO' : 'PEMKO';
+
+  if (!ngpRaw) {
+    resultDiv.innerHTML = `
+      <div class="result-card not-found">
+        <div class="result-label">Result</div>
+        <div class="result-value">Part number "<strong>${input.toUpperCase()}</strong>" not found in the ${brandLabel}-to-NGP cross reference.</div>
+        <p class="disclaimer">Check the part number and try again, or consult the NGP cross-reference catalog directly.</p>
+      </div>`;
+    return;
+  }
+
+  // NGP may be multiple parts separated by ", "
+  const ngpParts = ngpRaw.split(',').map(s => s.trim()).filter(Boolean);
+
+  let partsHTML = '';
+  ngpParts.forEach(ngpPart => {
+    // Handle "x" joined parts like "402 x 400"
+    const priceObj = lookupPrice(ngpPart);
+    const priceStr = formatPrice(priceObj);
+    partsHTML += `
+      <div class="ngp-part-row">
+        <span class="ngp-part-name">${ngpPart}</span>
+        ${priceStr
+          ? `<span class="ngp-price-badge">${priceStr}</span>`
+          : `<span class="ngp-price-badge no-price">Contact NGP for pricing</span>`
+        }
+      </div>`;
+  });
+
+  resultDiv.innerHTML = `
+    <div class="result-card found">
+      <div class="result-label">${brandLabel} Part #</div>
+      <div class="result-value">${input.toUpperCase()}</div>
+      <div class="result-label" style="margin-top:4px">NGP Equivalent${ngpParts.length > 1 ? 's' : ''}</div>
+      <div class="multi-result">${partsHTML}</div>
+      <p class="disclaimer">* Prices are list prices from the NGP Price List dated June 8, 2026. Items may require finish suffix (A=mill aluminum, DKB=dark bronze, BR=bronze, SS=stainless steel). Products may not be completely identical &mdash; verify with NGP catalog.</p>
+    </div>`;
+}
+
+function doBatchLookup() {
+  const input = document.getElementById('batch-input').value.trim();
+  const resultDiv = document.getElementById('batch-result');
+  const brandLabel = activeBatchBrand === 'zero' ? 'ZERO' : 'PEMKO';
+
+  if (!input) { resultDiv.innerHTML = ''; return; }
+
+  const parts = input.split('\n').map(s => s.trim()).filter(Boolean);
+  if (parts.length === 0) { resultDiv.innerHTML = ''; return; }
+
+  let rows = '';
+  parts.forEach(part => {
+    const ngpRaw = lookupNGP(activeBatchBrand, part);
+    if (!ngpRaw) {
+      rows += `<tr>
+        <td>${part.toUpperCase()}</td>
+        <td class="not-found-cell">Not found</td>
+        <td class="not-found-cell">&mdash;</td>
+      </tr>`;
+      return;
+    }
+
+    const ngpParts = ngpRaw.split(',').map(s => s.trim()).filter(Boolean);
+    const priceInfos = ngpParts.map(p => {
+      const priceObj = lookupPrice(p);
+      return priceObj ? `${p}: ${formatPrice(priceObj)}` : `${p}: —`;
+    });
+
+    rows += `<tr>
+      <td>${part.toUpperCase()}</td>
+      <td class="ngp-cell">${ngpParts.join(', ')}</td>
+      <td class="price-cell" style="font-size:0.85rem">${priceInfos.join('<br>')}</td>
+    </tr>`;
+  });
+
+  resultDiv.innerHTML = `
+    <table>
+      <thead>
+        <tr>
+          <th>${brandLabel} Part #</th>
+          <th>NGP Equivalent</th>
+          <th>List Price (June 8, 2026)</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <p class="disclaimer" style="margin-top:10px;font-size:0.78rem;color:#888;font-style:italic">
+      List prices shown. Finish suffixes not included in base price lookup. Items may not be completely identical &mdash; verify with NGP catalog.
+    </p>`;
+}
+
+// Allow Enter in textarea to not submit but allow newlines
+document.getElementById('batch-input').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && e.ctrlKey) doBatchLookup();
+});
+</script>
+
+</body>
+</html>
