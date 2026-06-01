@@ -366,6 +366,20 @@
     <div id="result"></div>
   </div>
 
+  <!-- NGP Direct Price Lookup -->
+  <div class="card">
+    <div class="section-title">NGP Price Lookup</div>
+
+    <div class="search-row">
+      <input type="text" id="ngp-input" placeholder="Enter full or partial NGP part number (e.g. 35EV, 112N, R50)"
+             onkeydown="if(event.key==='Enter') doNGPLookup()" autocomplete="off" spellcheck="false">
+      <button onclick="doNGPLookup()">Search</button>
+    </div>
+    <p class="hint">Partial matches supported — entering "35EV" will return 35EV, 35EVDKB, and all other variants.</p>
+
+    <div id="ngp-result"></div>
+  </div>
+
   <!-- Batch Lookup -->
   <div class="card">
     <div class="section-title">
@@ -627,6 +641,62 @@ function doBatchLookup() {
     <p class="disclaimer" style="margin-top:10px;font-size:0.78rem;color:#888;font-style:italic">
       List prices shown. Finish suffixes not included in base price lookup. Items may not be completely identical &mdash; verify with NGP catalog.
     </p>`;
+}
+
+function doNGPLookup() {
+  const input = document.getElementById('ngp-input').value.trim();
+  const resultDiv = document.getElementById('ngp-result');
+
+  if (!input) { resultDiv.innerHTML = ''; return; }
+
+  const query = normalize(input);
+
+  // Find all price keys that contain the query string
+  const matches = Object.entries(DATA.prices)
+    .filter(([key]) => key.includes(query))
+    .sort(([a], [b]) => {
+      // Exact match first, then starts-with, then contains
+      if (a === query) return -1;
+      if (b === query) return 1;
+      if (a.startsWith(query) && !b.startsWith(query)) return -1;
+      if (b.startsWith(query) && !a.startsWith(query)) return 1;
+      return a.localeCompare(b);
+    });
+
+  if (matches.length === 0) {
+    resultDiv.innerHTML = `
+      <div class="result-card not-found" style="margin-top:20px">
+        <div class="result-label">Result</div>
+        <div class="result-value">No NGP part numbers found matching "<strong>${input.toUpperCase()}</strong>".</div>
+        <p class="disclaimer">Check the part number and try again, or consult the NGP price list directly.</p>
+      </div>`;
+    return;
+  }
+
+  const cap = 100;
+  const shown = matches.slice(0, cap);
+  const overflowMsg = matches.length > cap
+    ? `<p class="disclaimer" style="margin-top:8px">Showing first ${cap} of ${matches.length} matches. Refine your search for fewer results.</p>`
+    : '';
+
+  let rows = shown.map(([key, priceObj]) => `
+    <tr>
+      <td class="ngp-cell">${key}</td>
+      <td class="price-cell">${formatPrice(priceObj)}</td>
+    </tr>`).join('');
+
+  resultDiv.innerHTML = `
+    <table style="margin-top:20px">
+      <thead>
+        <tr>
+          <th>NGP Part #</th>
+          <th>List Price (June 8, 2026)</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+    ${overflowMsg}
+    <p class="disclaimer" style="margin-top:8px">List prices shown. Contact NGP for net pricing.</p>`;
 }
 
 // Allow Enter in textarea to not submit but allow newlines
