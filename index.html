@@ -315,11 +315,22 @@
   .sizes-tag {
     display: block;
     font-size: 0.75rem;
-    color: #0f3460;
-    font-weight: 600;
-    margin-top: 3px;
-    letter-spacing: 0.2px;
+    color: #555;
+    font-weight: 500;
+    margin-top: 5px;
+    line-height: 1.8;
   }
+  .size-item {
+    display: inline-block;
+    background: #eef4ff;
+    border: 1px solid #d1daf0;
+    border-radius: 5px;
+    padding: 1px 7px;
+    margin: 2px 3px 2px 0;
+    color: #1a1a2e;
+    white-space: nowrap;
+  }
+  .size-item strong { color: #0f3460; }
 
   .finish-banner {
     background: #fff8e1;
@@ -533,9 +544,26 @@ function formatPrice(priceObj) {
   return `$${priceObj.price.toFixed(2)} ${unit}`;
 }
 
+function parseSize(sizeStr) {
+  // Returns length in feet, or null if not calculable
+  const s = sizeStr.trim();
+  if (s.endsWith("'")) return parseFloat(s);
+  if (s.endsWith('"')) return parseFloat(s) / 12;
+  return null;
+}
+
 function sizesTag(priceObj) {
   if (!priceObj || !priceObj.sizes || !priceObj.sizes.length) return '';
-  return `<span class="sizes-tag">Stock sizes: ${priceObj.sizes.join(' &bull; ')}</span>`;
+  if (priceObj.unit !== 'FT') {
+    return `<span class="sizes-tag">Stock sizes: ${priceObj.sizes.join(' &bull; ')}</span>`;
+  }
+  const items = priceObj.sizes.map(sz => {
+    const ft = parseSize(sz);
+    if (ft === null) return `<span class="size-item">${sz}</span>`;
+    const total = (ft * priceObj.price).toFixed(2);
+    return `<span class="size-item">${sz} = <strong>$${total}</strong></span>`;
+  }).join('');
+  return `<div class="sizes-tag">Stock sizes &amp; total price: ${items}</div>`;
 }
 
 function doLookup() {
@@ -697,12 +725,25 @@ function doNGPLookup() {
     ? `<p class="disclaimer" style="margin-top:8px">Showing first ${cap} of ${matches.length} matches. Refine your search for fewer results.</p>`
     : '';
 
-  let rows = shown.map(([key, priceObj]) => `
-    <tr>
+  let rows = shown.map(([key, priceObj]) => {
+    let sizesCell = '&mdash;';
+    if (priceObj.sizes && priceObj.sizes.length) {
+      if (priceObj.unit === 'FT') {
+        sizesCell = priceObj.sizes.map(sz => {
+          const ft = parseSize(sz);
+          const total = ft !== null ? ` = <strong>$${(ft * priceObj.price).toFixed(2)}</strong>` : '';
+          return `${sz}${total}`;
+        }).join('<br>');
+      } else {
+        sizesCell = priceObj.sizes.join(' &bull; ');
+      }
+    }
+    return `<tr>
       <td class="ngp-cell">${key}</td>
       <td class="price-cell">${formatPrice(priceObj)}</td>
-      <td>${priceObj.sizes ? priceObj.sizes.join(' &bull; ') : '&mdash;'}</td>
-    </tr>`).join('');
+      <td style="font-size:0.85rem;line-height:1.7">${sizesCell}</td>
+    </tr>`;
+  }).join('');
 
   resultDiv.innerHTML = `
     <table style="margin-top:20px">
