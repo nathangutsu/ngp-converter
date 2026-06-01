@@ -476,7 +476,28 @@ function lookupPEMKOBase(key) {
   // 1. Exact match
   if (map[key]) return { ngp: map[key], finishInfo: null };
 
-  // 2. Try inserting '_' in place of a finish suffix
+  // 2. Try stripping finish suffix from the END → direct base lookup
+  //    e.g. "151A" → strip "A" → look up "151" → NGP "411"
+  for (const { pemko, ngp: ngpFinish } of PEMKO_FINISH_MAP) {
+    if (key.endsWith(pemko)) {
+      const base = key.slice(0, key.length - pemko.length);
+      if (base.length >= 1 && map[base]) {
+        const baseNgpParts = map[base].split(',').map(s => s.trim());
+        const finalNgpParts = baseNgpParts.map(p => p + ngpFinish);
+        return {
+          ngp: finalNgpParts.join(', '),
+          finishInfo: {
+            pemkoFinish: pemko,
+            ngpFinish: ngpFinish || '(none — mill aluminum)',
+            matchedKey: base,
+            baseNgp: map[base],
+          }
+        };
+      }
+    }
+  }
+
+  // 3. Try inserting '_' in place of a finish suffix (for underscore entries like 222_V)
   for (const { pemko, ngp: ngpFinish } of PEMKO_FINISH_MAP) {
     let idx = 0;
     while (idx <= key.length - pemko.length) {
