@@ -312,6 +312,17 @@
     font-style: italic;
   }
 
+  .finish-banner {
+    background: #fff8e1;
+    border: 1px solid #ffe082;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin: 12px 0 8px;
+    font-size: 0.85rem;
+    color: #5d4200;
+  }
+  .finish-icon { margin-right: 6px; }
+
   footer {
     text-align: center;
     padding: 28px;
@@ -408,6 +419,18 @@ function setActiveBatchBrand(brand, el) {
   document.getElementById('batch-result').innerHTML = '';
 }
 
+// PEMKO finish suffix → NGP finish suffix
+// Ordered longest-first to avoid partial matches (SS before S, AK before A)
+const PEMKO_FINISH_MAP = [
+  { pemko: 'AK',  ngp: 'SIA' },
+  { pemko: 'SP',  ngp: 'SP'  },
+  { pemko: 'SS',  ngp: 'SS'  },
+  { pemko: 'A',   ngp: ''    },  // Mill aluminum = no NGP suffix
+  { pemko: 'B',   ngp: 'BR'  },
+  { pemko: 'C',   ngp: 'A'   },
+  { pemko: 'D',   ngp: 'DKB' },
+];
+
 function normalize(str) {
   return str.trim().toUpperCase().replace(/\s+/g, '');
 }
@@ -415,7 +438,44 @@ function normalize(str) {
 function lookupNGP(brand, partNum) {
   const key = normalize(partNum);
   const map = brand === 'zero' ? DATA.zero : DATA.pemko;
-  return map[key] || null;
+
+  // 1. Exact match
+  if (map[key]) return { ngp: map[key], finishInfo: null };
+
+  // 2. For PEMKO only: try inserting '_' in place of a finish suffix
+  if (brand === 'pemko') {
+    for (const { pemko, ngp: ngpFinish } of PEMKO_FINISH_MAP) {
+      // Try every position where this finish suffix appears in the key
+      let idx = 0;
+      while (idx <= key.length - pemko.length) {
+        const pos = key.indexOf(pemko, idx);
+        if (pos === -1) break;
+        const candidate = key.slice(0, pos) + '_' + key.slice(pos + pemko.length);
+        if (map[candidate]) {
+          // Apply NGP finish suffix to each NGP part
+          const baseNgpParts = map[candidate].split(',').map(s => s.trim());
+          const finalNgpParts = baseNgpParts.map(p => p + ngpFinish);
+          return {
+            ngp: finalNgpParts.join(', '),
+            finishInfo: {
+              pemkoFinish: pemko,
+              ngpFinish: ngpFinish || '(none — mill aluminum)',
+              matchedKey: candidate,
+              baseNgp: map[candidate],
+            }
+          };
+        }
+        idx = pos + 1;
+      }
+    }
+  }
+
+  return null;
+}
+
+function lookupNGPRaw(brand, partNum) {
+  const result = lookupNGP(brand, partNum);
+  return result ? result.ngp : null;
 }
 
 function lookupPrice(ngpPart) {
@@ -459,10 +519,10 @@ function doLookup() {
     return;
   }
 
-  const ngpRaw = lookupNGP(activeBrand, input);
+  const lookupResult = lookupNGP(activeBrand, input);
   const brandLabel = activeBrand === 'zero' ? 'ZERO' : 'PEMKO';
 
-  if (!ngpRaw) {
+  if (!lookupResult) {
     resultDiv.innerHTML = `
       <div class="result-card not-found">
         <div class="result-label">Result</div>
@@ -472,12 +532,22 @@ function doLookup() {
     return;
   }
 
-  // NGP may be multiple parts separated by ", "
+  const { ngp: ngpRaw, finishInfo } = lookupResult;
   const ngpParts = ngpRaw.split(',').map(s => s.trim()).filter(Boolean);
+
+  let finishBannerHTML = '';
+  if (finishInfo) {
+    finishBannerHTML = `
+      <div class="finish-banner">
+        <span class="finish-icon">&#9888;</span>
+        Finish suffix detected: PEMKO <strong>${finishInfo.pemkoFinish}</strong>
+        &rarr; NGP finish <strong>${finishInfo.ngpFinish}</strong>.
+        Base cross-reference used: <strong>${finishInfo.matchedKey}</strong> &rarr; <strong>${finishInfo.baseNgp}</strong>.
+      </div>`;
+  }
 
   let partsHTML = '';
   ngpParts.forEach(ngpPart => {
-    // Handle "x" joined parts like "402 x 400"
     const priceObj = lookupPrice(ngpPart);
     const priceStr = formatPrice(priceObj);
     partsHTML += `
@@ -494,6 +564,7 @@ function doLookup() {
     <div class="result-card found">
       <div class="result-label">${brandLabel} Part #</div>
       <div class="result-value">${input.toUpperCase()}</div>
+      ${finishBannerHTML}
       <div class="result-label" style="margin-top:4px">NGP Equivalent${ngpParts.length > 1 ? 's' : ''}</div>
       <div class="multi-result">${partsHTML}</div>
       <p class="disclaimer">* Prices are list prices from the NGP Price List dated June 8, 2026. Items may require finish suffix (A=mill aluminum, DKB=dark bronze, BR=bronze, SS=stainless steel). Products may not be completely identical &mdash; verify with NGP catalog.</p>
@@ -512,26 +583,32 @@ function doBatchLookup() {
 
   let rows = '';
   parts.forEach(part => {
-    const ngpRaw = lookupNGP(activeBatchBrand, part);
-    if (!ngpRaw) {
+    const result = lookupNGP(activeBatchBrand, part);
+    if (!result) {
       rows += `<tr>
         <td>${part.toUpperCase()}</td>
         <td class="not-found-cell">Not found</td>
+        <td class="not-found-cell">&mdash;</td>
         <td class="not-found-cell">&mdash;</td>
       </tr>`;
       return;
     }
 
+    const { ngp: ngpRaw, finishInfo } = result;
     const ngpParts = ngpRaw.split(',').map(s => s.trim()).filter(Boolean);
     const priceInfos = ngpParts.map(p => {
       const priceObj = lookupPrice(p);
       return priceObj ? `${p}: ${formatPrice(priceObj)}` : `${p}: —`;
     });
+    const finishNote = finishInfo
+      ? `PEMKO <strong>${finishInfo.pemkoFinish}</strong> → NGP <strong>${finishInfo.ngpFinish || '(none)'}</strong>`
+      : '&mdash;';
 
     rows += `<tr>
       <td>${part.toUpperCase()}</td>
       <td class="ngp-cell">${ngpParts.join(', ')}</td>
       <td class="price-cell" style="font-size:0.85rem">${priceInfos.join('<br>')}</td>
+      <td style="font-size:0.82rem">${finishNote}</td>
     </tr>`;
   });
 
@@ -542,6 +619,7 @@ function doBatchLookup() {
           <th>${brandLabel} Part #</th>
           <th>NGP Equivalent</th>
           <th>List Price (June 8, 2026)</th>
+          <th>Finish Detected</th>
         </tr>
       </thead>
       <tbody>${rows}</tbody>
