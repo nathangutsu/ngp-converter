@@ -469,37 +469,68 @@ function normalize(str) {
   return str.trim().toUpperCase().replace(/\s+/g, '');
 }
 
-function lookupNGP(brand, partNum) {
-  const key = normalize(partNum);
-  const map = brand === 'zero' ? DATA.zero : DATA.pemko;
+// Core PEMKO lookup without size — returns {ngp, finishInfo} or null
+function lookupPEMKOBase(key) {
+  const map = DATA.pemko;
 
   // 1. Exact match
   if (map[key]) return { ngp: map[key], finishInfo: null };
 
-  // 2. For PEMKO only: try inserting '_' in place of a finish suffix
-  if (brand === 'pemko') {
-    for (const { pemko, ngp: ngpFinish } of PEMKO_FINISH_MAP) {
-      // Try every position where this finish suffix appears in the key
-      let idx = 0;
-      while (idx <= key.length - pemko.length) {
-        const pos = key.indexOf(pemko, idx);
-        if (pos === -1) break;
-        const candidate = key.slice(0, pos) + '_' + key.slice(pos + pemko.length);
-        if (map[candidate]) {
-          // Apply NGP finish suffix to each NGP part
-          const baseNgpParts = map[candidate].split(',').map(s => s.trim());
-          const finalNgpParts = baseNgpParts.map(p => p + ngpFinish);
-          return {
-            ngp: finalNgpParts.join(', '),
-            finishInfo: {
-              pemkoFinish: pemko,
-              ngpFinish: ngpFinish || '(none — mill aluminum)',
-              matchedKey: candidate,
-              baseNgp: map[candidate],
-            }
-          };
-        }
-        idx = pos + 1;
+  // 2. Try inserting '_' in place of a finish suffix
+  for (const { pemko, ngp: ngpFinish } of PEMKO_FINISH_MAP) {
+    let idx = 0;
+    while (idx <= key.length - pemko.length) {
+      const pos = key.indexOf(pemko, idx);
+      if (pos === -1) break;
+      const candidate = key.slice(0, pos) + '_' + key.slice(pos + pemko.length);
+      if (map[candidate]) {
+        const baseNgpParts = map[candidate].split(',').map(s => s.trim());
+        const finalNgpParts = baseNgpParts.map(p => p + ngpFinish);
+        return {
+          ngp: finalNgpParts.join(', '),
+          finishInfo: {
+            pemkoFinish: pemko,
+            ngpFinish: ngpFinish || '(none — mill aluminum)',
+            matchedKey: candidate,
+            baseNgp: map[candidate],
+          }
+        };
+      }
+      idx = pos + 1;
+    }
+  }
+  return null;
+}
+
+function lookupNGP(brand, partNum) {
+  const key = normalize(partNum);
+
+  if (brand === 'zero') {
+    const map = DATA.zero;
+    if (map[key]) return { ngp: map[key], finishInfo: null };
+    return null;
+  }
+
+  // PEMKO: try base lookup first
+  const baseResult = lookupPEMKOBase(key);
+  if (baseResult) return baseResult;
+
+  // PEMKO: try stripping trailing size in inches (e.g. "151A36" → base "151A", size 36")
+  const sizeMatch = key.match(/^(.+?)(\d{2,3})$/);
+  if (sizeMatch) {
+    const withoutSize = sizeMatch[1];
+    const inches = parseInt(sizeMatch[2], 10);
+    if (inches >= 12 && inches <= 360) {
+      const sizedResult = lookupPEMKOBase(withoutSize);
+      if (sizedResult) {
+        const feet = inches / 12;
+        // Append -SIZE" to each NGP part
+        const ngpWithSize = sizedResult.ngp.split(',').map(p => `${p.trim()}-${inches}"`).join(', ');
+        return {
+          ngp: ngpWithSize,
+          finishInfo: sizedResult.finishInfo,
+          sizeInfo: { inches, feet },
+        };
       }
     }
   }
@@ -512,24 +543,37 @@ function lookupNGPRaw(brand, partNum) {
   return result ? result.ngp : null;
 }
 
-function lookupPrice(ngpPart) {
-  const key = normalize(ngpPart);
+function lookupPrice(ngpPart, sizeInches) {
+  // Strip trailing -36" style suffix from NGP part name before price lookup
+  const clean = ngpPart.replace(/-\d+"$/, '');
+  const key = normalize(clean);
 
-  // Direct lookup
-  if (DATA.prices[key]) return DATA.prices[key];
+  let priceObj = null;
+  if (DATA.prices[key]) priceObj = DATA.prices[key];
+  else if (DATA.prices[key + 'A']) priceObj = DATA.prices[key + 'A'];
+  else {
+    const stripped = key.replace(/[A-Z]$/, '');
+    if (stripped.length >= 2 && DATA.prices[stripped]) priceObj = DATA.prices[stripped];
+  }
+  if (!priceObj) {
+    const base = key.split('-')[0];
+    if (base !== key && DATA.prices[base + 'A']) priceObj = DATA.prices[base + 'A'];
+  }
+  if (!priceObj) return null;
 
-  // Try with "A" suffix (mill aluminum is default/standard)
-  if (DATA.prices[key + 'A']) return DATA.prices[key + 'A'];
+  // If a size in inches was provided and price is per foot, attach total
+  const inches = sizeInches || extractSizeFromPart(ngpPart);
+  if (inches && priceObj.unit === 'FT') {
+    const feet = inches / 12;
+    return { ...priceObj, sizeInches: inches, totalPrice: +(feet * priceObj.price).toFixed(2) };
+  }
+  return priceObj;
+}
 
-  // Try stripping trailing letter that might be a finish
-  const stripped = key.replace(/[A-Z]$/, '');
-  if (stripped.length >= 2 && DATA.prices[stripped]) return DATA.prices[stripped];
-
-  // Try base model before dash (for size variants like 220NA-36")
-  const base = key.split('-')[0];
-  if (base !== key && DATA.prices[base + 'A']) return { ...DATA.prices[base + 'A'], note: 'per ft (size not included)' };
-
-  return null;
+function extractSizeFromPart(ngpPart) {
+  // Extract inches from "-36"" suffix on NGP part names
+  const m = ngpPart.match(/-(\d+)"$/);
+  return m ? parseInt(m[1], 10) : null;
 }
 
 function formatPrice(priceObj) {
@@ -541,6 +585,11 @@ function formatPrice(priceObj) {
                priceObj.unit === 'PK' ? 'per pack' :
                priceObj.unit === 'RL' ? 'per roll' :
                '/ ' + priceObj.unit;
+  if (priceObj.totalPrice != null) {
+    const feet = (priceObj.sizeInches / 12);
+    const ftLabel = feet % 1 === 0 ? `${feet} ft.` : `${priceObj.sizeInches}"`;
+    return `$${priceObj.totalPrice.toFixed(2)} total <small style="opacity:0.75">(${ftLabel} × $${priceObj.price.toFixed(2)}/ft.)</small>`;
+  }
   return `$${priceObj.price.toFixed(2)} ${unit}`;
 }
 
@@ -588,12 +637,20 @@ function doLookup() {
     return;
   }
 
-  const { ngp: ngpRaw, finishInfo } = lookupResult;
+  const { ngp: ngpRaw, finishInfo, sizeInfo } = lookupResult;
   const ngpParts = ngpRaw.split(',').map(s => s.trim()).filter(Boolean);
 
-  let finishBannerHTML = '';
+  let bannerHTML = '';
+  if (sizeInfo) {
+    const ftLabel = sizeInfo.feet % 1 === 0 ? `${sizeInfo.feet} ft.` : `${sizeInfo.inches}"`;
+    bannerHTML += `
+      <div class="finish-banner" style="background:#f0fff4;border-color:#27ae60;color:#1a5c36;">
+        &#128210; Size detected: <strong>${sizeInfo.inches}"</strong> (${ftLabel}) &mdash;
+        total price calculated below.
+      </div>`;
+  }
   if (finishInfo) {
-    finishBannerHTML = `
+    bannerHTML += `
       <div class="finish-banner">
         <span class="finish-icon">&#9888;</span>
         Finish suffix detected: PEMKO <strong>${finishInfo.pemkoFinish}</strong>
@@ -604,9 +661,9 @@ function doLookup() {
 
   let partsHTML = '';
   ngpParts.forEach(ngpPart => {
-    const priceObj = lookupPrice(ngpPart);
+    const priceObj = lookupPrice(ngpPart, sizeInfo ? sizeInfo.inches : null);
     const priceStr = formatPrice(priceObj);
-    const sizes = sizesTag(priceObj);
+    const sizes = sizeInfo ? '' : sizesTag(priceObj);
     partsHTML += `
       <div class="ngp-part-row">
         <div>
@@ -624,7 +681,7 @@ function doLookup() {
     <div class="result-card found">
       <div class="result-label">${brandLabel} Part #</div>
       <div class="result-value">${input.toUpperCase()}</div>
-      ${finishBannerHTML}
+      ${bannerHTML}
       <div class="result-label" style="margin-top:4px">NGP Equivalent${ngpParts.length > 1 ? 's' : ''}</div>
       <div class="multi-result">${partsHTML}</div>
       <p class="disclaimer">* Prices are list prices from the NGP Price List dated June 8, 2026. Items may require finish suffix (A=mill aluminum, DKB=dark bronze, BR=bronze, SS=stainless steel). Products may not be completely identical &mdash; verify with NGP catalog.</p>
@@ -654,21 +711,21 @@ function doBatchLookup() {
       return;
     }
 
-    const { ngp: ngpRaw, finishInfo } = result;
+    const { ngp: ngpRaw, finishInfo, sizeInfo } = result;
     const ngpParts = ngpRaw.split(',').map(s => s.trim()).filter(Boolean);
     const priceInfos = ngpParts.map(p => {
-      const priceObj = lookupPrice(p);
+      const priceObj = lookupPrice(p, sizeInfo ? sizeInfo.inches : null);
       return priceObj ? `${p}: ${formatPrice(priceObj)}` : `${p}: —`;
     });
-    const finishNote = finishInfo
-      ? `PEMKO <strong>${finishInfo.pemkoFinish}</strong> → NGP <strong>${finishInfo.ngpFinish || '(none)'}</strong>`
-      : '&mdash;';
+    let notes = [];
+    if (finishInfo) notes.push(`Finish: PEMKO <strong>${finishInfo.pemkoFinish}</strong> → NGP <strong>${finishInfo.ngpFinish || '(none)'}</strong>`);
+    if (sizeInfo) notes.push(`Size: <strong>${sizeInfo.inches}"</strong>`);
 
     rows += `<tr>
       <td>${part.toUpperCase()}</td>
       <td class="ngp-cell">${ngpParts.join(', ')}</td>
       <td class="price-cell" style="font-size:0.85rem">${priceInfos.join('<br>')}</td>
-      <td style="font-size:0.82rem">${finishNote}</td>
+      <td style="font-size:0.82rem">${notes.length ? notes.join('<br>') : '&mdash;'}</td>
     </tr>`;
   });
 
