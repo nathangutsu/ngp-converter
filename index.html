@@ -707,6 +707,18 @@ function lookupPrice(ngpPart, sizeInches, doorInfo, tekInfo) {
     const dkbKey = key.replace(/BK/g, 'DKB');
     if (DATA.prices[dkbKey]) priceObj = { ...DATA.prices[dkbKey], finishNote: 'BK (priced as DKB)' };
   }
+  // Fallback: strip NGP insert suffixes that don't apply to all product types
+  // e.g. A605WHDKB → A605DKB (glass products don't carry nylon brush suffix)
+  if (!priceObj) {
+    const NGP_INSERTS_TO_STRIP = ['WH', 'V', 'N', 'S', 'T', 'P', 'M'];
+    for (const ins of NGP_INSERTS_TO_STRIP) {
+      if (key.includes(ins)) {
+        const stripped = key.replace(ins, '');
+        if (DATA.prices[stripped]) { priceObj = { ...DATA.prices[stripped], insertStripped: ins }; break; }
+        if (DATA.prices[stripped + 'A']) { priceObj = { ...DATA.prices[stripped + 'A'], insertStripped: ins }; break; }
+      }
+    }
+  }
   if (!priceObj) return null;
 
   // If a size in inches was provided and price is per foot, attach total
@@ -745,6 +757,7 @@ function formatPrice(priceObj) {
   const nfNote = priceObj.nfAdder ? ` <small style="opacity:0.75">(incl. $5.25/ft Notched Fins adder)</small>` : '';
   const bkNote = priceObj.finishNote ? ` <small style="opacity:0.75">(${priceObj.finishNote})</small>` : '';
   const tkNote = priceObj.tekAdder ? ` <small style="opacity:0.75">(incl. $${priceObj.tekAdder.toFixed(2)}/ft TEK Screws adder)</small>` : '';
+  const insNote = priceObj.insertStripped ? ` <small style="opacity:0.75">(insert suffix '${priceObj.insertStripped}' not applicable to this product — priced without)</small>` : '';
   if (priceObj.totalPrice != null) {
     const inches = priceObj.sizeInches;
     const feet = inches / 12;
@@ -753,9 +766,9 @@ function formatPrice(priceObj) {
     const doorPart = priceObj.doorInches
       ? ` <small style="opacity:0.75">(1×${priceObj.doorHeader}" + 2×${priceObj.doorJamb}" = ${inches}" = ${ftLabel} × $${priceObj.price.toFixed(2)}/ft.${nfPart})</small>`
       : ` <small style="opacity:0.75">(${ftLabel} × $${priceObj.price.toFixed(2)}/ft.${nfPart})</small>`;
-    return `$${priceObj.totalPrice.toFixed(2)} total${doorPart}`;
+    return `$${priceObj.totalPrice.toFixed(2)} total${doorPart}${insNote}`;
   }
-  return `$${priceObj.price.toFixed(2)} ${unit}${nfNote}${bkNote}${tkNote}`;
+  return `$${priceObj.price.toFixed(2)} ${unit}${nfNote}${bkNote}${tkNote}${insNote}`;
 }
 
 function parseSize(sizeStr) {
