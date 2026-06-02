@@ -595,6 +595,32 @@ function lookupPEMKOBase(key) {
   return null;
 }
 
+// Parse 4-6 trailing digits as door opening dimensions (header + jamb)
+// Returns { header, jamb } in inches, or null if not valid door dims
+function parseDoorDims(digits) {
+  let header, jamb;
+  if (digits.length === 4) {
+    header = parseInt(digits.slice(0, 2), 10);
+    jamb   = parseInt(digits.slice(2),    10);
+  } else if (digits.length === 5) {
+    // Most common: 2-digit width + 3-digit height (e.g. 36108)
+    header = parseInt(digits.slice(0, 2), 10);
+    jamb   = parseInt(digits.slice(2),    10);
+    if (header < 12 || header > 240 || jamb < 12 || jamb > 360) {
+      // Fallback: 3-digit width + 2-digit height (e.g. 12084)
+      header = parseInt(digits.slice(0, 3), 10);
+      jamb   = parseInt(digits.slice(3),    10);
+    }
+  } else if (digits.length === 6) {
+    header = parseInt(digits.slice(0, 3), 10);
+    jamb   = parseInt(digits.slice(3),    10);
+  }
+  if (header >= 12 && header <= 240 && jamb >= 12 && jamb <= 360) {
+    return { header, jamb };
+  }
+  return null;
+}
+
 function lookupNGP(brand, partNum) {
   const key = normalize(partNum);
 
@@ -608,22 +634,41 @@ function lookupNGP(brand, partNum) {
   const baseResult = lookupPEMKOBase(key);
   if (baseResult) return baseResult;
 
-  // PEMKO: try stripping trailing size in inches (e.g. "151A36" → base "151A", size 36")
-  const sizeMatch = key.match(/^(.+?)(\d{2,3})$/);
-  if (sizeMatch) {
-    const withoutSize = sizeMatch[1];
-    const inches = parseInt(sizeMatch[2], 10);
-    if (inches >= 12 && inches <= 360) {
-      const sizedResult = lookupPEMKOBase(withoutSize);
-      if (sizedResult) {
-        const feet = inches / 12;
-        // Append -SIZE" to each NGP part
-        const ngpWithSize = sizedResult.ngp.split(',').map(p => `${p.trim()}-${inches}"`).join(', ');
-        return {
-          ngp: ngpWithSize,
-          finishInfo: sizedResult.finishInfo,
-          sizeInfo: { inches, feet },
-        };
+  // Extract ALL trailing digits from the key
+  const trailingMatch = key.match(/^(.+?)(\d+)$/);
+  if (trailingMatch) {
+    const base   = trailingMatch[1];
+    const digits = trailingMatch[2];
+
+    // Single size: 2-3 digits (e.g. "151A36" → 36")
+    if (digits.length >= 2 && digits.length <= 3) {
+      const inches = parseInt(digits, 10);
+      if (inches >= 12 && inches <= 360) {
+        const sizedResult = lookupPEMKOBase(base);
+        if (sizedResult) {
+          const ngpWithSize = sizedResult.ngp.split(',').map(p => `${p.trim()}-${inches}"`).join(', ');
+          return { ...sizedResult, ngp: ngpWithSize, sizeInfo: { inches, feet: inches / 12 } };
+        }
+      }
+    }
+
+    // Door opening set: 4-6 digits (e.g. "303AS3684" → 36" header + 84" jambs)
+    if (digits.length >= 4 && digits.length <= 6) {
+      const dims = parseDoorDims(digits);
+      if (dims) {
+        const doorResult = lookupPEMKOBase(base);
+        if (doorResult) {
+          const totalInches = dims.header + 2 * dims.jamb;
+          return {
+            ...doorResult,
+            doorInfo: {
+              header:      dims.header,
+              jamb:        dims.jamb,
+              totalInches,
+              totalFeet:   totalInches / 12,
+            }
+          };
+        }
       }
     }
   }
@@ -636,7 +681,7 @@ function lookupNGPRaw(brand, partNum) {
   return result ? result.ngp : null;
 }
 
-function lookupPrice(ngpPart, sizeInches) {
+function lookupPrice(ngpPart, sizeInches, doorInfo) {
   // Strip trailing -36" style suffix from NGP part name before price lookup
   const clean = ngpPart.replace(/-\d+"$/, '');
   const key = normalize(clean);
@@ -658,7 +703,10 @@ function lookupPrice(ngpPart, sizeInches) {
   const inches = sizeInches || extractSizeFromPart(ngpPart);
   if (inches && priceObj.unit === 'FT') {
     const feet = inches / 12;
-    return { ...priceObj, sizeInches: inches, totalPrice: +(feet * priceObj.price).toFixed(2) };
+    const extra = doorInfo
+      ? { doorInches: inches, doorHeader: doorInfo.header, doorJamb: doorInfo.jamb }
+      : {};
+    return { ...priceObj, sizeInches: inches, totalPrice: +(feet * priceObj.price).toFixed(2), ...extra };
   }
   return priceObj;
 }
@@ -680,9 +728,14 @@ function formatPrice(priceObj) {
                '/ ' + priceObj.unit;
   const nfNote = priceObj.nfAdder ? ` <small style="opacity:0.75">(incl. $5.25/ft Notched Fins adder)</small>` : '';
   if (priceObj.totalPrice != null) {
-    const feet = (priceObj.sizeInches / 12);
-    const ftLabel = feet % 1 === 0 ? `${feet} ft.` : `${priceObj.sizeInches}"`;
-    return `$${priceObj.totalPrice.toFixed(2)} total <small style="opacity:0.75">(${ftLabel} × $${priceObj.price.toFixed(2)}/ft.${priceObj.nfAdder ? ' incl. NF adder' : ''})</small>`;
+    const inches = priceObj.sizeInches;
+    const feet = inches / 12;
+    const ftLabel = feet % 1 === 0 ? `${feet} ft.` : `${(feet).toFixed(2)} ft.`;
+    const nfPart = priceObj.nfAdder ? ', incl. NF adder' : '';
+    const doorPart = priceObj.doorInches
+      ? ` <small style="opacity:0.75">(1×${priceObj.doorHeader}" + 2×${priceObj.doorJamb}" = ${inches}" = ${ftLabel} × $${priceObj.price.toFixed(2)}/ft.${nfPart})</small>`
+      : ` <small style="opacity:0.75">(${ftLabel} × $${priceObj.price.toFixed(2)}/ft.${nfPart})</small>`;
+    return `$${priceObj.totalPrice.toFixed(2)} total${doorPart}`;
   }
   return `$${priceObj.price.toFixed(2)} ${unit}${nfNote}`;
 }
@@ -731,7 +784,7 @@ function doLookup() {
     return;
   }
 
-  const { ngp: ngpRaw, finishInfo, sizeInfo, variantInfo } = lookupResult;
+  const { ngp: ngpRaw, finishInfo, sizeInfo, variantInfo, doorInfo } = lookupResult;
   const ngpParts = ngpRaw.split(',').map(s => s.trim()).filter(Boolean);
 
   // If multiple insert-material variants were found, show a breakdown table instead
@@ -763,7 +816,14 @@ function doLookup() {
   }
 
   let bannerHTML = '';
-  if (sizeInfo) {
+  if (doorInfo) {
+    const ftLabel = doorInfo.totalFeet % 1 === 0 ? `${doorInfo.totalFeet} ft.` : `${doorInfo.totalInches}"`;
+    bannerHTML += `
+      <div class="finish-banner" style="background:#f0fff4;border-color:#27ae60;color:#1a5c36;">
+        &#128682; Door opening set detected: <strong>${doorInfo.header}"</strong> wide &times; <strong>${doorInfo.jamb}"</strong> tall<br>
+        <small>1 header (${doorInfo.header}") + 2 jambs (${doorInfo.jamb}" each) = <strong>${doorInfo.totalInches}" total (${ftLabel})</strong> &mdash; set price calculated below.</small>
+      </div>`;
+  } else if (sizeInfo) {
     const ftLabel = sizeInfo.feet % 1 === 0 ? `${sizeInfo.feet} ft.` : `${sizeInfo.inches}"`;
     bannerHTML += `
       <div class="finish-banner" style="background:#f0fff4;border-color:#27ae60;color:#1a5c36;">
@@ -783,7 +843,8 @@ function doLookup() {
 
   let partsHTML = '';
   ngpParts.forEach(ngpPart => {
-    const priceObj = lookupPrice(ngpPart, sizeInfo ? sizeInfo.inches : null);
+    const effectiveInches = doorInfo ? doorInfo.totalInches : (sizeInfo ? sizeInfo.inches : null);
+    const priceObj = lookupPrice(ngpPart, effectiveInches, doorInfo || null);
     const priceStr = formatPrice(priceObj);
     const sizes = sizeInfo ? '' : sizesTag(priceObj);
     partsHTML += `
@@ -833,15 +894,17 @@ function doBatchLookup() {
       return;
     }
 
-    const { ngp: ngpRaw, finishInfo, sizeInfo } = result;
+    const { ngp: ngpRaw, finishInfo, sizeInfo, doorInfo } = result;
     const ngpParts = ngpRaw.split(',').map(s => s.trim()).filter(Boolean);
+    const effectiveInches = doorInfo ? doorInfo.totalInches : (sizeInfo ? sizeInfo.inches : null);
     const priceInfos = ngpParts.map(p => {
-      const priceObj = lookupPrice(p, sizeInfo ? sizeInfo.inches : null);
+      const priceObj = lookupPrice(p, effectiveInches, doorInfo || null);
       return priceObj ? `${p}: ${formatPrice(priceObj)}` : `${p}: —`;
     });
     let notes = [];
     if (finishInfo) notes.push(`Finish: PEMKO <strong>${finishInfo.pemkoFinish}</strong> → NGP <strong>${finishInfo.ngpFinish || '(none)'}</strong>`);
-    if (sizeInfo) notes.push(`Size: <strong>${sizeInfo.inches}"</strong>`);
+    if (doorInfo) notes.push(`Door set: <strong>${doorInfo.header}"</strong> × <strong>${doorInfo.jamb}"</strong> (${doorInfo.totalInches}" total)`);
+    else if (sizeInfo) notes.push(`Size: <strong>${sizeInfo.inches}"</strong>`);
 
     rows += `<tr>
       <td>${part.toUpperCase()}</td>
