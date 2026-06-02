@@ -520,6 +520,40 @@ function lookupPEMKOBase(key) {
       idx = pos + 1;
     }
   }
+
+  // 4. Try stripping PEMKO insert material code from end, then retry finish detection
+  //    e.g. "210AV" → strip insert "V" → "210A" → strip finish "A" → base "210" → NGP "318V"
+  //    The NGP cross-reference already has the insert baked into the NGP part number.
+  const PEMKO_INSERTS = ['NB', 'PK', 'E', 'M', 'N', 'P', 'R', 'S', 'T', 'V'];
+  for (const insert of PEMKO_INSERTS) {
+    if (key.endsWith(insert) && key.length > insert.length) {
+      const withoutInsert = key.slice(0, key.length - insert.length);
+      // Try direct lookup on remainder
+      if (map[withoutInsert]) {
+        return { ngp: map[withoutInsert], finishInfo: null };
+      }
+      // Try strip finish from end of remainder
+      for (const { pemko, ngp: ngpFinish } of PEMKO_FINISH_MAP) {
+        if (withoutInsert.endsWith(pemko)) {
+          const base = withoutInsert.slice(0, withoutInsert.length - pemko.length);
+          if (base.length >= 1 && map[base]) {
+            const baseNgpParts = map[base].split(',').map(s => s.trim());
+            const finalNgpParts = baseNgpParts.map(p => p + ngpFinish);
+            return {
+              ngp: finalNgpParts.join(', '),
+              finishInfo: {
+                pemkoFinish: pemko,
+                ngpFinish: ngpFinish || '(none — mill aluminum)',
+                matchedKey: base,
+                baseNgp: map[base],
+              }
+            };
+          }
+        }
+      }
+    }
+  }
+
   return null;
 }
 
