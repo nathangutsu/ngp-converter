@@ -631,12 +631,21 @@ function lookupNGP(brand, partNum) {
     return null;
   }
 
+  // PEMKO: detect TK (TEK Screws) option — strip before lookup, re-attach as adder
+  const hasTK = key.includes('TK');
+  const lookupKey = hasTK ? key.replace('TK', '') : key;
+  const tekInfo = hasTK ? { adderPerFt: 0.85, label: 'TEK Screws' } : null;
+
+  function withTK(result) {
+    return result && hasTK ? { ...result, tekInfo } : result;
+  }
+
   // PEMKO: try base lookup first
-  const baseResult = lookupPEMKOBase(key);
-  if (baseResult) return baseResult;
+  const baseResult = lookupPEMKOBase(lookupKey);
+  if (baseResult) return withTK(baseResult);
 
   // Extract ALL trailing digits from the key
-  const trailingMatch = key.match(/^(.+?)(\d+)$/);
+  const trailingMatch = lookupKey.match(/^(.+?)(\d+)$/);
   if (trailingMatch) {
     const base   = trailingMatch[1];
     const digits = trailingMatch[2];
@@ -648,7 +657,7 @@ function lookupNGP(brand, partNum) {
         const sizedResult = lookupPEMKOBase(base);
         if (sizedResult) {
           const ngpWithSize = sizedResult.ngp.split(',').map(p => `${p.trim()}-${inches}"`).join(', ');
-          return { ...sizedResult, ngp: ngpWithSize, sizeInfo: { inches, feet: inches / 12 } };
+          return withTK({ ...sizedResult, ngp: ngpWithSize, sizeInfo: { inches, feet: inches / 12 } });
         }
       }
     }
@@ -660,15 +669,10 @@ function lookupNGP(brand, partNum) {
         const doorResult = lookupPEMKOBase(base);
         if (doorResult) {
           const totalInches = dims.header + 2 * dims.jamb;
-          return {
+          return withTK({
             ...doorResult,
-            doorInfo: {
-              header:      dims.header,
-              jamb:        dims.jamb,
-              totalInches,
-              totalFeet:   totalInches / 12,
-            }
-          };
+            doorInfo: { header: dims.header, jamb: dims.jamb, totalInches, totalFeet: totalInches / 12 }
+          });
         }
       }
     }
@@ -682,7 +686,7 @@ function lookupNGPRaw(brand, partNum) {
   return result ? result.ngp : null;
 }
 
-function lookupPrice(ngpPart, sizeInches, doorInfo) {
+function lookupPrice(ngpPart, sizeInches, doorInfo, tekInfo) {
   // Strip trailing -36" style suffix from NGP part name before price lookup
   const clean = ngpPart.replace(/-\d+"$/, '');
   const key = normalize(clean);
@@ -707,12 +711,18 @@ function lookupPrice(ngpPart, sizeInches, doorInfo) {
 
   // If a size in inches was provided and price is per foot, attach total
   const inches = sizeInches || extractSizeFromPart(ngpPart);
+  const effectiveRate = priceObj.price + (tekInfo ? tekInfo.adderPerFt : 0);
   if (inches && priceObj.unit === 'FT') {
     const feet = inches / 12;
     const extra = doorInfo
       ? { doorInches: inches, doorHeader: doorInfo.header, doorJamb: doorInfo.jamb }
       : {};
-    return { ...priceObj, sizeInches: inches, totalPrice: +(feet * priceObj.price).toFixed(2), ...extra };
+    return { ...priceObj, sizeInches: inches, totalPrice: +(feet * effectiveRate).toFixed(2),
+             tekAdder: tekInfo ? tekInfo.adderPerFt : 0, ...extra };
+  }
+  // No size — show per-ft rate with TK adder applied
+  if (tekInfo && priceObj.unit === 'FT') {
+    return { ...priceObj, price: +effectiveRate.toFixed(2), tekAdder: tekInfo.adderPerFt };
   }
   return priceObj;
 }
@@ -734,6 +744,7 @@ function formatPrice(priceObj) {
                '/ ' + priceObj.unit;
   const nfNote = priceObj.nfAdder ? ` <small style="opacity:0.75">(incl. $5.25/ft Notched Fins adder)</small>` : '';
   const bkNote = priceObj.finishNote ? ` <small style="opacity:0.75">(${priceObj.finishNote})</small>` : '';
+  const tkNote = priceObj.tekAdder ? ` <small style="opacity:0.75">(incl. $${priceObj.tekAdder.toFixed(2)}/ft TEK Screws adder)</small>` : '';
   if (priceObj.totalPrice != null) {
     const inches = priceObj.sizeInches;
     const feet = inches / 12;
@@ -744,7 +755,7 @@ function formatPrice(priceObj) {
       : ` <small style="opacity:0.75">(${ftLabel} × $${priceObj.price.toFixed(2)}/ft.${nfPart})</small>`;
     return `$${priceObj.totalPrice.toFixed(2)} total${doorPart}`;
   }
-  return `$${priceObj.price.toFixed(2)} ${unit}${nfNote}${bkNote}`;
+  return `$${priceObj.price.toFixed(2)} ${unit}${nfNote}${bkNote}${tkNote}`;
 }
 
 function parseSize(sizeStr) {
@@ -791,7 +802,7 @@ function doLookup() {
     return;
   }
 
-  const { ngp: ngpRaw, finishInfo, sizeInfo, variantInfo, doorInfo } = lookupResult;
+  const { ngp: ngpRaw, finishInfo, sizeInfo, variantInfo, doorInfo, tekInfo } = lookupResult;
   const ngpParts = ngpRaw.split(',').map(s => s.trim()).filter(Boolean);
 
   // If multiple insert-material variants were found, show a breakdown table instead
@@ -847,11 +858,17 @@ function doLookup() {
         Base cross-reference used: <strong>${finishInfo.matchedKey}</strong> &rarr; <strong>${finishInfo.baseNgp}</strong>.
       </div>`;
   }
+  if (tekInfo) {
+    bannerHTML += `
+      <div class="finish-banner" style="background:#fff3e0;border-color:#ffb74d;color:#7c4700;">
+        &#128296; TEK Screws (TK) detected &mdash; <strong>+$${tekInfo.adderPerFt.toFixed(2)}/ft</strong> added to price.
+      </div>`;
+  }
 
   let partsHTML = '';
   ngpParts.forEach(ngpPart => {
     const effectiveInches = doorInfo ? doorInfo.totalInches : (sizeInfo ? sizeInfo.inches : null);
-    const priceObj = lookupPrice(ngpPart, effectiveInches, doorInfo || null);
+    const priceObj = lookupPrice(ngpPart, effectiveInches, doorInfo || null, tekInfo || null);
     const priceStr = formatPrice(priceObj);
     const sizes = sizeInfo ? '' : sizesTag(priceObj);
     partsHTML += `
@@ -901,17 +918,18 @@ function doBatchLookup() {
       return;
     }
 
-    const { ngp: ngpRaw, finishInfo, sizeInfo, doorInfo } = result;
+    const { ngp: ngpRaw, finishInfo, sizeInfo, doorInfo, tekInfo } = result;
     const ngpParts = ngpRaw.split(',').map(s => s.trim()).filter(Boolean);
     const effectiveInches = doorInfo ? doorInfo.totalInches : (sizeInfo ? sizeInfo.inches : null);
     const priceInfos = ngpParts.map(p => {
-      const priceObj = lookupPrice(p, effectiveInches, doorInfo || null);
+      const priceObj = lookupPrice(p, effectiveInches, doorInfo || null, tekInfo || null);
       return priceObj ? `${p}: ${formatPrice(priceObj)}` : `${p}: —`;
     });
     let notes = [];
     if (finishInfo) notes.push(`Finish: PEMKO <strong>${finishInfo.pemkoFinish}</strong> → NGP <strong>${finishInfo.ngpFinish || '(none)'}</strong>`);
     if (doorInfo) notes.push(`Door set: <strong>${doorInfo.header}"</strong> × <strong>${doorInfo.jamb}"</strong> (${doorInfo.totalInches}" total)`);
     else if (sizeInfo) notes.push(`Size: <strong>${sizeInfo.inches}"</strong>`);
+    if (tekInfo) notes.push(`TEK Screws: <strong>+$${tekInfo.adderPerFt.toFixed(2)}/ft</strong>`);
 
     rows += `<tr>
       <td>${part.toUpperCase()}</td>
