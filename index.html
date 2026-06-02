@@ -554,6 +554,20 @@ function lookupPEMKOBase(key) {
     }
   }
 
+  // 5. Search for all underscore variants of this base (e.g. "217" finds "217_PK" and "217_V")
+  //    Used when the user enters a base number without specifying insert material.
+  const prefix = key + '_';
+  const variants = Object.entries(map).filter(([k]) => k.startsWith(prefix));
+  if (variants.length > 0) {
+    const ngpValues = [...new Set(variants.map(([, v]) => v))].join(', ');
+    const variantList = variants.map(([k]) => k).join(', ');
+    return {
+      ngp: ngpValues,
+      finishInfo: null,
+      variantInfo: { base: key, variants: variants.map(([k, v]) => ({ pemko: k, ngp: v })) }
+    };
+  }
+
   return null;
 }
 
@@ -692,8 +706,36 @@ function doLookup() {
     return;
   }
 
-  const { ngp: ngpRaw, finishInfo, sizeInfo } = lookupResult;
+  const { ngp: ngpRaw, finishInfo, sizeInfo, variantInfo } = lookupResult;
   const ngpParts = ngpRaw.split(',').map(s => s.trim()).filter(Boolean);
+
+  // If multiple insert-material variants were found, show a breakdown table instead
+  if (variantInfo) {
+    const rows = variantInfo.variants.map(({ pemko, ngp }) => {
+      const priceObj = lookupPrice(ngp);
+      const priceStr = formatPrice(priceObj) || 'Contact NGP';
+      return `<tr>
+        <td>${pemko}</td>
+        <td class="ngp-cell">${ngp}</td>
+        <td class="price-cell">${priceStr}</td>
+      </tr>`;
+    }).join('');
+    resultDiv.innerHTML = `
+      <div class="result-card found" style="margin-top:20px">
+        <div class="result-label">PEMKO Part #</div>
+        <div class="result-value">${input.toUpperCase()}</div>
+        <div class="finish-banner" style="margin-top:12px">
+          &#9432; Multiple variants found for base <strong>${variantInfo.base}</strong>.
+          Specify the insert material suffix to get a single result.
+        </div>
+        <table style="margin-top:14px">
+          <thead><tr><th>PEMKO Part</th><th>NGP Equivalent</th><th>List Price (June 8, 2026)</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <p class="disclaimer" style="margin-top:10px">* Finish suffix (A, B, C, D…) can also be included, e.g. <strong>${variantInfo.variants[0]?.pemko.replace('_','D')}</strong></p>
+      </div>`;
+    return;
+  }
 
   let bannerHTML = '';
   if (sizeInfo) {
