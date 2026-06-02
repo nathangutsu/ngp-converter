@@ -456,6 +456,7 @@ function setActiveBatchBrand(brand, el) {
 // PEMKO finish suffix → NGP finish suffix
 // Ordered longest-first to avoid partial matches (SS before S, AK before A)
 const PEMKO_FINISH_MAP = [
+  { pemko: 'BSP', ngp: 'BK'  },  // Black — must come before 'B' and 'SP'
   { pemko: 'AK',  ngp: 'SIA' },
   { pemko: 'SP',  ngp: 'SP'  },
   { pemko: 'SS',  ngp: 'SS'  },
@@ -697,6 +698,11 @@ function lookupPrice(ngpPart, sizeInches, doorInfo) {
     const base = key.split('-')[0];
     if (base !== key && DATA.prices[base + 'A']) priceObj = DATA.prices[base + 'A'];
   }
+  // BK (black) is priced the same as DKB — fall back if no BK-specific price exists
+  if (!priceObj && key.includes('BK')) {
+    const dkbKey = key.replace(/BK/g, 'DKB');
+    if (DATA.prices[dkbKey]) priceObj = { ...DATA.prices[dkbKey], finishNote: 'BK (priced as DKB)' };
+  }
   if (!priceObj) return null;
 
   // If a size in inches was provided and price is per foot, attach total
@@ -727,6 +733,7 @@ function formatPrice(priceObj) {
                priceObj.unit === 'RL' ? 'per roll' :
                '/ ' + priceObj.unit;
   const nfNote = priceObj.nfAdder ? ` <small style="opacity:0.75">(incl. $5.25/ft Notched Fins adder)</small>` : '';
+  const bkNote = priceObj.finishNote ? ` <small style="opacity:0.75">(${priceObj.finishNote})</small>` : '';
   if (priceObj.totalPrice != null) {
     const inches = priceObj.sizeInches;
     const feet = inches / 12;
@@ -737,7 +744,7 @@ function formatPrice(priceObj) {
       : ` <small style="opacity:0.75">(${ftLabel} × $${priceObj.price.toFixed(2)}/ft.${nfPart})</small>`;
     return `$${priceObj.totalPrice.toFixed(2)} total${doorPart}`;
   }
-  return `$${priceObj.price.toFixed(2)} ${unit}${nfNote}`;
+  return `$${priceObj.price.toFixed(2)} ${unit}${nfNote}${bkNote}`;
 }
 
 function parseSize(sizeStr) {
