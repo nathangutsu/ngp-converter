@@ -636,18 +636,36 @@ function lookupNGP(brand, partNum) {
     return null;
   }
 
+  // PEMKO: detect XBL (Black Brush → NGP -BB) — xBL / XBL / x BL all normalize to XBL
+  const hasBB = key.endsWith('XBL');
+  const keyNoBB = hasBB ? key.slice(0, -3) : key;
+
   // PEMKO: detect TK (TEK Screws) option — strip before lookup, re-attach as adder
-  const hasTK = key.includes('TK');
-  const lookupKey = hasTK ? key.replace('TK', '') : key;
+  const hasTK = keyNoBB.includes('TK');
+  const lookupKey = hasTK ? keyNoBB.replace('TK', '') : keyNoBB;
   const tekInfo = hasTK ? { adderPerFt: 0.85, label: 'TEK Screws' } : null;
 
-  function withTK(result) {
-    return result && hasTK ? { ...result, tekInfo } : result;
+  // Apply -BB suffix to NGP parts (inserted before size suffix if present)
+  function applyBBSuffix(ngpPart) {
+    const sizeMatch = ngpPart.match(/(-\d+")$/);
+    return sizeMatch
+      ? ngpPart.slice(0, -sizeMatch[0].length) + '-BB' + sizeMatch[0]
+      : ngpPart + '-BB';
+  }
+
+  function withTKandBB(result) {
+    if (!result) return null;
+    let r = hasTK ? { ...result, tekInfo } : result;
+    if (hasBB) {
+      const ngpBB = r.ngp.split(',').map(p => applyBBSuffix(p.trim())).join(', ');
+      r = { ...r, ngp: ngpBB, bbInfo: true };
+    }
+    return r;
   }
 
   // PEMKO: try base lookup first
   const baseResult = lookupPEMKOBase(lookupKey);
-  if (baseResult) return withTK(baseResult);
+  if (baseResult) return withTKandBB(baseResult);
 
   // Extract ALL trailing digits from the key
   const trailingMatch = lookupKey.match(/^(.+?)(\d+)$/);
@@ -662,7 +680,7 @@ function lookupNGP(brand, partNum) {
         const sizedResult = lookupPEMKOBase(base);
         if (sizedResult) {
           const ngpWithSize = sizedResult.ngp.split(',').map(p => `${p.trim()}-${inches}"`).join(', ');
-          return withTK({ ...sizedResult, ngp: ngpWithSize, sizeInfo: { inches, feet: inches / 12 } });
+          return withTKandBB({ ...sizedResult, ngp: ngpWithSize, sizeInfo: { inches, feet: inches / 12 } });
         }
       }
     }
@@ -674,7 +692,7 @@ function lookupNGP(brand, partNum) {
         const doorResult = lookupPEMKOBase(base);
         if (doorResult) {
           const totalInches = dims.header + 2 * dims.jamb;
-          return withTK({
+          return withTKandBB({
             ...doorResult,
             doorInfo: { header: dims.header, jamb: dims.jamb, totalInches, totalFeet: totalInches / 12 }
           });
@@ -820,7 +838,7 @@ function doLookup() {
     return;
   }
 
-  const { ngp: ngpRaw, finishInfo, sizeInfo, variantInfo, doorInfo, tekInfo } = lookupResult;
+  const { ngp: ngpRaw, finishInfo, sizeInfo, variantInfo, doorInfo, tekInfo, bbInfo } = lookupResult;
   const ngpParts = ngpRaw.split(',').map(s => s.trim()).filter(Boolean);
 
   // If multiple insert-material variants were found, show a breakdown table instead
@@ -882,6 +900,12 @@ function doLookup() {
         &#128296; TEK Screws (TK) detected &mdash; <strong>+$${tekInfo.adderPerFt.toFixed(2)}/ft</strong> added to price.
       </div>`;
   }
+  if (bbInfo) {
+    bannerHTML += `
+      <div class="finish-banner" style="background:#2d2d2d;border-color:#111;color:#fff;">
+        &#11035; Black Brush (xBL) detected &mdash; NGP <strong>-BB</strong> suffix applied.
+      </div>`;
+  }
 
   let partsHTML = '';
   ngpParts.forEach(ngpPart => {
@@ -936,7 +960,7 @@ function doBatchLookup() {
       return;
     }
 
-    const { ngp: ngpRaw, finishInfo, sizeInfo, doorInfo, tekInfo } = result;
+    const { ngp: ngpRaw, finishInfo, sizeInfo, doorInfo, tekInfo, bbInfo } = result;
     const ngpParts = ngpRaw.split(',').map(s => s.trim()).filter(Boolean);
     const effectiveInches = doorInfo ? doorInfo.totalInches : (sizeInfo ? sizeInfo.inches : null);
     const priceInfos = ngpParts.map(p => {
@@ -948,6 +972,7 @@ function doBatchLookup() {
     if (doorInfo) notes.push(`Door set: <strong>${doorInfo.header}"</strong> × <strong>${doorInfo.jamb}"</strong> (${doorInfo.totalInches}" total)`);
     else if (sizeInfo) notes.push(`Size: <strong>${sizeInfo.inches}"</strong>`);
     if (tekInfo) notes.push(`TEK Screws: <strong>+$${tekInfo.adderPerFt.toFixed(2)}/ft</strong>`);
+    if (bbInfo) notes.push(`Black Brush: NGP <strong>-BB</strong>`);
 
     rows += `<tr>
       <td>${part.toUpperCase()}</td>
