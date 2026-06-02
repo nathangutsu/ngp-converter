@@ -678,12 +678,30 @@ function lookupNGP(brand, partNum) {
 
     // Single size: 2-3 digits (e.g. "151A36" → 36")
     if (digits.length >= 2 && digits.length <= 3) {
-      const inches = parseInt(digits, 10);
-      if (inches >= 12 && inches <= 360) {
+      let inches = parseInt(digits, 10);
+      let sizeInFeet = false;
+
+      // If size is small (≤ 25) it may be feet not inches (e.g. HSS2000-18 = 18 ft roll).
+      // Check: if there are no per-EA size variants for this base, treat as feet.
+      if (inches <= 25) {
         const sizedResult = lookupPEMKOBase(base);
         if (sizedResult) {
+          const ngpBase = sizedResult.ngp.split(',')[0].trim();
+          const hasInchVariants = Object.keys(DATA.prices).some(k => k.startsWith(ngpBase + '-') && k.endsWith('"'));
+          if (!hasInchVariants) {
+            // No per-EA inch variants → treat number as feet
+            inches = inches * 12;
+            sizeInFeet = true;
+          }
+        }
+      }
+
+      if (inches >= 12 && inches <= 3600) {
+        const sizedResult = lookupPEMKOBase(base);
+        if (sizedResult) {
+          const feet = inches / 12;
           const ngpWithSize = sizedResult.ngp.split(',').map(p => `${p.trim()}-${inches}"`).join(', ');
-          return withTKandBB({ ...sizedResult, ngp: ngpWithSize, sizeInfo: { inches, feet: inches / 12 } });
+          return withTKandBB({ ...sizedResult, ngp: ngpWithSize, sizeInfo: { inches, feet, sizeInFeet } });
         }
       }
     }
@@ -925,10 +943,12 @@ function doLookup() {
       </div>`;
   } else if (sizeInfo) {
     const ftLabel = sizeInfo.feet % 1 === 0 ? `${sizeInfo.feet} ft.` : `${sizeInfo.inches}"`;
+    const sizeSource = sizeInfo.sizeInFeet
+      ? `<strong>${sizeInfo.feet} ft.</strong> (interpreted as feet — roll/reel length)`
+      : `<strong>${sizeInfo.inches}"</strong> (${ftLabel})`;
     bannerHTML += `
       <div class="finish-banner" style="background:#f0fff4;border-color:#27ae60;color:#1a5c36;">
-        &#128210; Size detected: <strong>${sizeInfo.inches}"</strong> (${ftLabel}) &mdash;
-        total price calculated below.
+        &#128210; Size detected: ${sizeSource} &mdash; total price calculated below.
       </div>`;
   }
   if (finishInfo) {
