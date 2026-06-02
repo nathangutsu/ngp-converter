@@ -469,6 +469,17 @@ function normalize(str) {
   return str.trim().toUpperCase().replace(/\s+/g, '');
 }
 
+// Apply NGP finish suffix, inserting it BEFORE any trailing "NF" or "TNF" suffix
+// e.g. applyNGPFinish("36ETNF", "DKB") → "36ETDKBNF"  (not "36ETNFDKB")
+function applyNGPFinish(ngpPart, ngpFinish) {
+  if (!ngpFinish) return ngpPart;
+  // If part ends with NF, insert finish before it
+  if (ngpPart.endsWith('NF')) {
+    return ngpPart.slice(0, -2) + ngpFinish + 'NF';
+  }
+  return ngpPart + ngpFinish;
+}
+
 // Core PEMKO lookup without size — returns {ngp, finishInfo} or null
 function lookupPEMKOBase(key) {
   const map = DATA.pemko;
@@ -483,7 +494,7 @@ function lookupPEMKOBase(key) {
       const base = key.slice(0, key.length - pemko.length);
       if (base.length >= 1 && map[base]) {
         const baseNgpParts = map[base].split(',').map(s => s.trim());
-        const finalNgpParts = baseNgpParts.map(p => p + ngpFinish);
+        const finalNgpParts = baseNgpParts.map(p => applyNGPFinish(p, ngpFinish));
         return {
           ngp: finalNgpParts.join(', '),
           finishInfo: {
@@ -506,7 +517,7 @@ function lookupPEMKOBase(key) {
       const candidate = key.slice(0, pos) + '_' + key.slice(pos + pemko.length);
       if (map[candidate]) {
         const baseNgpParts = map[candidate].split(',').map(s => s.trim());
-        const finalNgpParts = baseNgpParts.map(p => p + ngpFinish);
+        const finalNgpParts = baseNgpParts.map(p => applyNGPFinish(p, ngpFinish));
         return {
           ngp: finalNgpParts.join(', '),
           finishInfo: {
@@ -538,7 +549,7 @@ function lookupPEMKOBase(key) {
           const base = withoutInsert.slice(0, withoutInsert.length - pemko.length);
           if (base.length >= 1 && map[base]) {
             const baseNgpParts = map[base].split(',').map(s => s.trim());
-            const finalNgpParts = baseNgpParts.map(p => p + ngpFinish);
+            const finalNgpParts = baseNgpParts.map(p => applyNGPFinish(p, ngpFinish));
             return {
               ngp: finalNgpParts.join(', '),
               finishInfo: {
