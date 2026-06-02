@@ -533,23 +533,36 @@ function lookupPEMKOBase(key) {
   }
 
   // 4. Try stripping PEMKO insert material code from end, then retry finish detection
-  //    e.g. "210AV" → strip insert "V" → "210A" → strip finish "A" → base "210" → NGP "318V"
-  //    The NGP cross-reference already has the insert baked into the NGP part number.
+  //    e.g. "210AV" → strip "V" → "210A" → strip "A" → "210" → NGP "318V" (insert already in NGP result)
+  //    e.g. "303AS" → strip "S" → "303A" → strip "A" → "303" → NGP "160" → append insert "S" → "160S"
   const PEMKO_INSERTS = ['NB', 'PK', 'E', 'M', 'N', 'P', 'R', 'S', 'T', 'V'];
+  // PEMKO insert material → NGP insert suffix
+  const PEMKO_INSERT_TO_NGP = {
+    'NB':'WH', 'PK':'V', 'E':'N', 'M':'M',
+    'N':'N',  'P':'P',  'R':'N', 'S':'S', 'T':'T', 'V':'V'
+  };
+  // Build final NGP part: if NGP base doesn't already end with the insert, append it before the finish
+  function withInsert(ngpBase, ngpInsert, ngpFinish) {
+    const base = ngpInsert && !ngpBase.endsWith(ngpInsert)
+      ? ngpBase + ngpInsert
+      : ngpBase;
+    return applyNGPFinish(base, ngpFinish);
+  }
   for (const insert of PEMKO_INSERTS) {
     if (key.endsWith(insert) && key.length > insert.length) {
       const withoutInsert = key.slice(0, key.length - insert.length);
+      const ngpInsert = PEMKO_INSERT_TO_NGP[insert] || '';
       // Try direct lookup on remainder
       if (map[withoutInsert]) {
-        return { ngp: map[withoutInsert], finishInfo: null };
+        const ngp = map[withoutInsert].split(',').map(s => withInsert(s.trim(), ngpInsert, '')).join(', ');
+        return { ngp, finishInfo: null };
       }
       // Try strip finish from end of remainder
       for (const { pemko, ngp: ngpFinish } of PEMKO_FINISH_MAP) {
         if (withoutInsert.endsWith(pemko)) {
           const base = withoutInsert.slice(0, withoutInsert.length - pemko.length);
           if (base.length >= 1 && map[base]) {
-            const baseNgpParts = map[base].split(',').map(s => s.trim());
-            const finalNgpParts = baseNgpParts.map(p => applyNGPFinish(p, ngpFinish));
+            const finalNgpParts = map[base].split(',').map(s => withInsert(s.trim(), ngpInsert, ngpFinish));
             return {
               ngp: finalNgpParts.join(', '),
               finishInfo: {
