@@ -542,11 +542,16 @@ function lookupPEMKOBase(key) {
     'NB':'WH', 'PK':'V', 'E':'N', 'M':'M',
     'N':'N',  'P':'P',  'R':'N', 'S':'S', 'T':'T', 'V':'V'
   };
-  // Build final NGP part: if NGP base doesn't already end with the insert, append it before the finish
+  // Build final NGP part: append insert only if it creates valid NGP products in the price list.
+  // If no price-list entries start with "base+insert", the insert is already implicit in the
+  // base product (e.g. A605 is inherently a nylon brush product — don't append WH).
   function withInsert(ngpBase, ngpInsert, ngpFinish) {
-    const base = ngpInsert && !ngpBase.endsWith(ngpInsert)
-      ? ngpBase + ngpInsert
-      : ngpBase;
+    if (!ngpInsert || ngpBase.endsWith(ngpInsert)) {
+      return applyNGPFinish(ngpBase, ngpFinish);
+    }
+    const withIns = ngpBase + ngpInsert;
+    const insertExists = Object.keys(DATA.prices).some(k => k.startsWith(withIns));
+    const base = insertExists ? withIns : ngpBase;
     return applyNGPFinish(base, ngpFinish);
   }
   for (const insert of PEMKO_INSERTS) {
