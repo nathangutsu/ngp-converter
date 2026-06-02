@@ -681,22 +681,22 @@ function lookupNGP(brand, partNum) {
       let inches = parseInt(digits, 10);
       let sizeInFeet = false;
 
-      // If size is small (≤ 25) it may be feet not inches (e.g. HSS2000-18 = 18 ft roll).
-      // Check: if there are no per-EA size variants for this base, treat as feet.
-      if (inches <= 25) {
-        const sizedResult = lookupPEMKOBase(base);
-        if (sizedResult) {
-          const ngpBase = sizedResult.ngp.split(',')[0].trim();
-          const hasInchVariants = Object.keys(DATA.prices).some(k => k.startsWith(ngpBase + '-') && k.endsWith('"'));
-          if (!hasInchVariants) {
-            // No per-EA inch variants → treat number as feet
-            inches = inches * 12;
-            sizeInFeet = true;
-          }
+      // Detect roll/reel products where size is always in feet (e.g. 5050C-510 = 510 ft).
+      // Rule 1: if NGP product has a sizes[] array (stock roll) → always feet.
+      // Rule 2: if size ≤ 25 AND no per-EA inch variants → feet (e.g. HSS2000-18).
+      const preCheck = lookupPEMKOBase(base);
+      if (preCheck) {
+        const ngpBase = preCheck.ngp.split(',')[0].trim();
+        const priceEntry = DATA.prices[ngpBase] || DATA.prices[ngpBase + 'A'];
+        const isRollProduct = priceEntry && priceEntry.sizes && priceEntry.sizes.length > 0;
+        const hasInchVariants = Object.keys(DATA.prices).some(k => k.startsWith(ngpBase + '-') && k.endsWith('"'));
+        if (isRollProduct || (inches <= 25 && !hasInchVariants)) {
+          inches = inches * 12;
+          sizeInFeet = true;
         }
       }
 
-      if (inches >= 12 && inches <= 3600) {
+      if (inches >= 12 && inches <= 72000) {
         const sizedResult = lookupPEMKOBase(base);
         if (sizedResult) {
           const feet = inches / 12;
