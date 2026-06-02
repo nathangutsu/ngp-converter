@@ -716,6 +716,32 @@ function lookupPrice(ngpPart, sizeInches, doorInfo, tekInfo) {
     return DATA.prices[exactKey];
   }
 
+  // If exact size not found, try rounding up to the next available NGP standard size
+  // e.g. 335NA-32" → round up to 335NA-36" (NGP doesn't make 32")
+  const sizeMatch = exactKey.match(/^(.+)-(\d+)"$/);
+  if (sizeMatch) {
+    const base = sizeMatch[1];
+    const reqInches = parseInt(sizeMatch[2], 10);
+    // Find all available size variants for this base model
+    const variants = Object.entries(DATA.prices)
+      .map(([k, v]) => { const m = k.match(/^(.+)-(\d+)"$/); return m && m[1] === base ? parseInt(m[2], 10) : null; })
+      .filter(n => n !== null)
+      .sort((a, b) => a - b);
+    if (variants.length > 0) {
+      // Round up to nearest available size >= requested
+      const roundedUp = variants.find(n => n >= reqInches) || variants[variants.length - 1];
+      const roundedKey = `${base}-${roundedUp}"`;
+      if (DATA.prices[roundedKey]) {
+        const note = roundedUp !== reqInches
+          ? `size rounded up to ${roundedUp}" (NGP standard; ${reqInches}" not available)`
+          : null;
+        return note
+          ? { ...DATA.prices[roundedKey], sizeNote: note }
+          : DATA.prices[roundedKey];
+      }
+    }
+  }
+
   // Strip trailing -36" style suffix from NGP part name before price lookup
   const clean = ngpPart.replace(/-\d+"$/, '');
   const key = normalize(clean);
@@ -787,6 +813,7 @@ function formatPrice(priceObj) {
   const bkNote = priceObj.finishNote ? ` <small style="opacity:0.75">(${priceObj.finishNote})</small>` : '';
   const tkNote = priceObj.tekAdder ? ` <small style="opacity:0.75">(incl. $${priceObj.tekAdder.toFixed(2)}/ft TEK Screws adder)</small>` : '';
   const insNote = priceObj.insertStripped ? ` <small style="opacity:0.75">(insert suffix '${priceObj.insertStripped}' not applicable to this product — priced without)</small>` : '';
+  const sizeNote = priceObj.sizeNote ? ` <small style="opacity:0.75">(${priceObj.sizeNote})</small>` : '';
   if (priceObj.totalPrice != null) {
     const inches = priceObj.sizeInches;
     const feet = inches / 12;
@@ -797,7 +824,7 @@ function formatPrice(priceObj) {
       : ` <small style="opacity:0.75">(${ftLabel} × $${priceObj.price.toFixed(2)}/ft.${nfPart})</small>`;
     return `$${priceObj.totalPrice.toFixed(2)} total${doorPart}${insNote}`;
   }
-  return `$${priceObj.price.toFixed(2)} ${unit}${nfNote}${bkNote}${tkNote}${insNote}`;
+  return `$${priceObj.price.toFixed(2)} ${unit}${nfNote}${bkNote}${tkNote}${insNote}${sizeNote}`;
 }
 
 function parseSize(sizeStr) {
