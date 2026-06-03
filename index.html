@@ -456,7 +456,7 @@ function setActiveBatchBrand(brand, el) {
 // ZERO finish suffix → NGP finish suffix
 // Ordered longest-first to avoid partial matches (B-ORB before B, AA/BK before A/B)
 const ZERO_FINISH_MAP = [
-  { zero: 'B-ORB', ngp: 'BR'  },  // Oil Rubbed Bronze — before 'B'
+  { zero: 'B-ORB', ngp: 'BR-DKB' },  // Oil Rubbed Bronze — before 'B'
   { zero: 'AA',    ngp: 'A'   },  // Clear Anodized — before 'A'
   { zero: 'BK',    ngp: 'DKB' },  // Black Anodized — before 'B'
   { zero: 'A',     ngp: ''    },  // Mill Aluminum — no NGP suffix
