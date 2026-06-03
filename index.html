@@ -640,31 +640,74 @@ function parseDoorDims(digits) {
   return null;
 }
 
+// ZERO base lookup with finish detection
+function lookupZEROBase(key) {
+  const map = DATA.zero;
+  if (map[key]) return { ngp: map[key], finishInfo: null };
+  for (const { zero, ngp: ngpFinish } of ZERO_FINISH_MAP) {
+    if (key.endsWith(zero)) {
+      const base = key.slice(0, key.length - zero.length);
+      if (base.length >= 1 && map[base]) {
+        const finalNgpParts = map[base].split(',').map(s => applyNGPFinish(s.trim(), ngpFinish));
+        return {
+          ngp: finalNgpParts.join(', '),
+          finishInfo: { pemkoFinish: zero, ngpFinish: ngpFinish || '(none — mill aluminum)', matchedKey: base, baseNgp: map[base] }
+        };
+      }
+    }
+  }
+  return null;
+}
+
 function lookupNGP(brand, partNum) {
   const key = normalize(partNum);
 
   if (brand === 'zero') {
-    const map = DATA.zero;
+    // Base lookup with finish detection
+    const baseResult = lookupZEROBase(key);
+    if (baseResult) return baseResult;
 
-    // 1. Exact match
-    if (map[key]) return { ngp: map[key], finishInfo: null };
+    // Size extraction — same logic as PEMKO
+    const trailingMatch = key.match(/^(.+?)(\d+)$/);
+    if (trailingMatch) {
+      const base   = trailingMatch[1].replace(/-$/, '');
+      const digits = trailingMatch[2];
 
-    // 2. Try stripping ZERO finish suffix from end
-    for (const { zero, ngp: ngpFinish } of ZERO_FINISH_MAP) {
-      if (key.endsWith(zero)) {
-        const base = key.slice(0, key.length - zero.length);
-        if (base.length >= 1 && map[base]) {
-          const baseNgpParts = map[base].split(',').map(s => s.trim());
-          const finalNgpParts = baseNgpParts.map(p => applyNGPFinish(p, ngpFinish));
-          return {
-            ngp: finalNgpParts.join(', '),
-            finishInfo: {
-              pemkoFinish: zero,
-              ngpFinish: ngpFinish || '(none — mill aluminum)',
-              matchedKey: base,
-              baseNgp: map[base],
-            }
-          };
+      // Single size: 1-3 digits
+      if (digits.length >= 1 && digits.length <= 3) {
+        let inches = parseInt(digits, 10);
+        let sizeInFeet = false;
+        const preCheck = lookupZEROBase(base);
+        if (preCheck) {
+          const ngpBase = preCheck.ngp.split(',')[0].trim();
+          const priceEntry = DATA.prices[ngpBase] || DATA.prices[ngpBase + 'A'];
+          const isRollProduct = priceEntry && priceEntry.sizes && priceEntry.sizes.length > 0
+              && priceEntry.sizes[0].endsWith("'");
+          const hasInchVariants = Object.keys(DATA.prices).some(k => k.startsWith(ngpBase + '-') && k.endsWith('"'));
+          if (isRollProduct || (inches <= 25 && !hasInchVariants)) {
+            inches = inches * 12;
+            sizeInFeet = true;
+          }
+        }
+        if (inches >= 12 && inches <= 72000) {
+          const sizedResult = lookupZEROBase(base);
+          if (sizedResult) {
+            const feet = inches / 12;
+            const ngpWithSize = sizedResult.ngp.split(',').map(p => `${p.trim()}-${inches}"`).join(', ');
+            return { ...sizedResult, ngp: ngpWithSize, sizeInfo: { inches, feet, sizeInFeet } };
+          }
+        }
+      }
+
+      // Door opening set: 4-6 digits
+      if (digits.length >= 4 && digits.length <= 6) {
+        const dims = parseDoorDims(digits);
+        if (dims) {
+          const doorResult = lookupZEROBase(base);
+          if (doorResult) {
+            const totalInches = dims.header + 2 * dims.jamb;
+            return { ...doorResult, doorInfo: { header: dims.header, jamb: dims.jamb, totalInches, totalFeet: totalInches / 12 } };
+          }
         }
       }
     }
