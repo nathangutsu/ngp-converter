@@ -894,6 +894,17 @@ function lookupPrice(ngpPart, sizeInches, doorInfo, tekInfo) {
       }
     }
   }
+  // Fallback: show available per-EA size variants when no plain price exists
+  // e.g. 225NA has 225NA-36", 225NA-48", 225NA-60" — show them as options
+  if (!priceObj) {
+    const eaVariants = Object.entries(DATA.prices)
+      .filter(([k, v]) => k.startsWith(key + '-') && k.endsWith('"') && v.unit === 'EA')
+      .map(([k, v]) => { const m = k.match(/-(\d+)"$/); return { inches: parseInt(m[1]), price: v.price, key: k }; })
+      .sort((a, b) => a.inches - b.inches);
+    if (eaVariants.length > 0) {
+      return { unit: 'EA', price: eaVariants[0].price, eaVariants, eaSizeRequired: true };
+    }
+  }
   if (!priceObj) return null;
 
   // If a size in inches was provided and price is per foot, attach total
@@ -922,6 +933,11 @@ function extractSizeFromPart(ngpPart) {
 
 function formatPrice(priceObj) {
   if (!priceObj) return null;
+  // Per-EA product requiring size selection — show available sizes
+  if (priceObj.eaSizeRequired && priceObj.eaVariants) {
+    const opts = priceObj.eaVariants.map(v => `${v.inches}" = <strong>$${v.price.toFixed(2)}</strong>`).join(' &bull; ');
+    return `Specify size: ${opts}`;
+  }
   const unit = priceObj.unit === 'FT' ? 'per ft.' :
                priceObj.unit === 'EA' ? 'each' :
                priceObj.unit === 'ST' ? 'per set' :
