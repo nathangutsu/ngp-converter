@@ -1180,6 +1180,38 @@ function doNGPLookup() {
 
   const query = normalize(input);
 
+  // Detect if the query has a size suffix: "106NA-96" or "106NA96"
+  // Formats: BASE-DIGITS, BASE-DIGITS", BASE DIGITS
+  const sizeSuffixMatch = query.match(/^(.+?)[-\s]?(\d{1,3})"?$/)
+    || query.match(/^(.+?)(\d{2,3})$/);
+  if (sizeSuffixMatch) {
+    const baseKey = sizeSuffixMatch[1].replace(/-$/, '');
+    const sizeInches = parseInt(sizeSuffixMatch[2], 10);
+    if (sizeInches >= 1 && sizeInches <= 600 && DATA.prices[baseKey]) {
+      const priceObj = DATA.prices[baseKey];
+      if (priceObj.unit === 'FT') {
+        const feet = sizeInches / 12;
+        const total = +(feet * priceObj.price).toFixed(2);
+        const sizedPriceObj = { ...priceObj, sizeInches, totalPrice: total };
+        resultDiv.innerHTML = `
+          <table style="margin-top:20px">
+            <thead><tr>
+              <th>NGP Part #</th>
+              <th>List Price (June 8, 2026)</th>
+              <th>Stock Sizes</th>
+            </tr></thead>
+            <tbody><tr>
+              <td class="ngp-cell">${baseKey}-${sizeInches}"</td>
+              <td class="price-cell">${formatPrice(sizedPriceObj)}</td>
+              <td style="font-size:0.85rem">${sizeInches}" (${feet % 1 === 0 ? feet + ' ft.' : feet.toFixed(2) + ' ft.'})</td>
+            </tr></tbody>
+          </table>
+          <p class="disclaimer" style="margin-top:8px">List price shown. Contact NGP for net pricing.</p>`;
+        return;
+      }
+    }
+  }
+
   // Find all price keys that contain the query string
   const matches = Object.entries(DATA.prices)
     .filter(([key]) => key.includes(query))
