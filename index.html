@@ -391,8 +391,11 @@
     <div class="section-title">NGP Price Lookup</div>
 
     <div class="search-row">
-      <input type="text" id="ngp-input" placeholder="Enter full or partial NGP part number (e.g. 35EV, 112N, R50)"
+      <input type="text" id="ngp-input" placeholder="Enter full or partial NGP part number (e.g. 35EV, 112N, R50, 106NA-96)"
              onkeydown="if(event.key==='Enter') doNGPLookup()" autocomplete="off" spellcheck="false">
+      <input type="number" id="ngp-multiplier" placeholder="Multiplier (e.g. .40)"
+             step="0.01" min="0.01" max="1" style="width:160px;flex-shrink:0"
+             onkeydown="if(event.key==='Enter') doNGPLookup()">
       <button onclick="doNGPLookup()">Search</button>
     </div>
     <p class="hint">Partial matches supported — entering "35EV" will return 35EV, 35EVDKB, and all other variants.</p>
@@ -1175,6 +1178,17 @@ function doBatchLookup() {
 function doNGPLookup() {
   const input = document.getElementById('ngp-input').value.trim();
   const resultDiv = document.getElementById('ngp-result');
+  const multiplierRaw = parseFloat(document.getElementById('ngp-multiplier').value);
+  const multiplier = (!isNaN(multiplierRaw) && multiplierRaw > 0 && multiplierRaw <= 1) ? multiplierRaw : null;
+
+  function netCell(listPrice) {
+    if (!multiplier || listPrice == null) return '';
+    const net = (listPrice * multiplier).toFixed(2);
+    return `<td class="price-cell" style="color:#e94560"><strong>$${net}</strong> net</td>`;
+  }
+  function netHeader() {
+    return multiplier ? `<th style="color:#e94560">Net Price (×${multiplier})</th>` : '';
+  }
 
   if (!input) { resultDiv.innerHTML = ''; return; }
 
@@ -1198,15 +1212,17 @@ function doNGPLookup() {
             <thead><tr>
               <th>NGP Part #</th>
               <th>List Price (June 8, 2026)</th>
-              <th>Stock Sizes</th>
+              ${netHeader()}
+              <th>Size</th>
             </tr></thead>
             <tbody><tr>
               <td class="ngp-cell">${baseKey}-${sizeInches}"</td>
               <td class="price-cell">${formatPrice(sizedPriceObj)}</td>
+              ${netCell(total)}
               <td style="font-size:0.85rem">${sizeInches}" (${feet % 1 === 0 ? feet + ' ft.' : feet.toFixed(2) + ' ft.'})</td>
             </tr></tbody>
           </table>
-          <p class="disclaimer" style="margin-top:8px">List price shown. Contact NGP for net pricing.</p>`;
+          <p class="disclaimer" style="margin-top:8px">List price shown.${multiplier ? ` Net price calculated at ×${multiplier} multiplier.` : ' Contact NGP for net pricing.'}</p>`;
         return;
       }
     }
@@ -1241,13 +1257,16 @@ function doNGPLookup() {
     : '';
 
   let rows = shown.map(([key, priceObj]) => {
+    const listPrice = priceObj.totalPrice ?? priceObj.price;
     let sizesCell = '&mdash;';
     if (priceObj.sizes && priceObj.sizes.length) {
       if (priceObj.unit === 'FT') {
         sizesCell = priceObj.sizes.map(sz => {
           const ft = parseSize(sz);
-          const total = ft !== null ? ` = <strong>$${(ft * priceObj.price).toFixed(2)}</strong>` : '';
-          return `${sz}${total}`;
+          if (ft === null) return sz;
+          const total = (ft * priceObj.price).toFixed(2);
+          const netPart = multiplier ? ` <span style="color:#e94560">(net $${(ft * priceObj.price * multiplier).toFixed(2)})</span>` : '';
+          return `${sz} = <strong>$${total}</strong>${netPart}`;
         }).join('<br>');
       } else {
         sizesCell = priceObj.sizes.join(' &bull; ');
@@ -1256,6 +1275,7 @@ function doNGPLookup() {
     return `<tr>
       <td class="ngp-cell">${key}</td>
       <td class="price-cell">${formatPrice(priceObj)}</td>
+      ${multiplier ? `<td class="price-cell" style="color:#e94560"><strong>$${(listPrice * multiplier).toFixed(2)}</strong></td>` : ''}
       <td style="font-size:0.85rem;line-height:1.7">${sizesCell}</td>
     </tr>`;
   }).join('');
@@ -1266,13 +1286,14 @@ function doNGPLookup() {
         <tr>
           <th>NGP Part #</th>
           <th>List Price (June 8, 2026)</th>
+          ${netHeader()}
           <th>Stock Sizes</th>
         </tr>
       </thead>
       <tbody>${rows}</tbody>
     </table>
     ${overflowMsg}
-    <p class="disclaimer" style="margin-top:8px">List prices shown. Contact NGP for net pricing.</p>`;
+    <p class="disclaimer" style="margin-top:8px">List prices shown.${multiplier ? ` Net price calculated at ×${multiplier} multiplier.` : ' Contact NGP for net pricing.'}</p>`;
 }
 
 // Allow Enter in textarea to not submit but allow newlines
