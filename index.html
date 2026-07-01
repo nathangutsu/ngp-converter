@@ -1194,12 +1194,20 @@ function doNGPLookup() {
 
   const query = normalize(input);
 
+  // B suffix (Black Anodized) uses the same price as DKB (Dark Bronze Anodized)
+  function resolveBtoDKB(key) {
+    if (key.endsWith('B') && !key.endsWith('DKB') && DATA.prices[key.slice(0, -1) + 'DKB']) {
+      return key.slice(0, -1) + 'DKB';
+    }
+    return key;
+  }
+
   // Detect if the query has a size suffix: "106NA-96" or "106NA96"
   // Formats: BASE-DIGITS, BASE-DIGITS", BASE DIGITS
   // Also detect foot suffix: "5050B-17'" or "5050B17'"
   const footSuffixMatch = query.match(/^(.+?)[-\s]?(\d+)'$/);
   if (footSuffixMatch) {
-    const baseKey = footSuffixMatch[1].replace(/-$/, '');
+    const baseKey = resolveBtoDKB(footSuffixMatch[1].replace(/-$/, ''));
     const feet = parseInt(footSuffixMatch[2], 10);
     if (feet >= 1 && DATA.prices[baseKey]) {
       const priceObj = DATA.prices[baseKey];
@@ -1230,7 +1238,7 @@ function doNGPLookup() {
   const sizeSuffixMatch = query.match(/^(.+?)[-\s]?(\d{1,3})"?$/)
     || query.match(/^(.+?)(\d{2,3})$/);
   if (sizeSuffixMatch) {
-    const baseKey = sizeSuffixMatch[1].replace(/-$/, '');
+    const baseKey = resolveBtoDKB(sizeSuffixMatch[1].replace(/-$/, ''));
     const rawNum = parseInt(sizeSuffixMatch[2], 10);
     if (rawNum >= 1 && rawNum <= 72000 && DATA.prices[baseKey]) {
       const priceObj = DATA.prices[baseKey];
@@ -1265,8 +1273,10 @@ function doNGPLookup() {
   }
 
   // Find all price keys that contain the query string
+  // If query ends in B (not DKB), also search using DKB equivalent
+  const resolvedQuery = resolveBtoDKB(query);
   const matches = Object.entries(DATA.prices)
-    .filter(([key]) => key.includes(query))
+    .filter(([key]) => key.includes(resolvedQuery))
     .sort(([a], [b]) => {
       // Exact match first, then starts-with, then contains
       if (a === query) return -1;
