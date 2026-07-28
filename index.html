@@ -1403,7 +1403,7 @@ function renderQuote() {
     const extList = +(item.listPrice * item.qty).toFixed(2);
     totalList += extList;
     const netPrice = mult ? +(item.listPrice * mult).toFixed(2) : null;
-    const extNet = netPrice !== null ? +(extList * mult).toFixed(2) : null;
+    const extNet = netPrice !== null ? +(netPrice * item.qty).toFixed(2) : null;
     if (extNet !== null) totalNet += extNet;
     const unitLabel = item.unit && item.unit !== 'TOTAL' ? `<span style="color:#a0a0b0;font-size:0.78rem"> /${item.unit}</span>` : '';
     const extDisplay = mult ? extNet : extList;
