@@ -1234,14 +1234,12 @@ function doNGPLookup() {
               <th>List Price (June 8, 2026)</th>
               ${netHeader()}
               <th>Size</th>
-              <th></th>
             </tr></thead>
             <tbody><tr>
-              <td class="ngp-cell">${baseKey}-${feet}'</td>
+              <td class="ngp-cell">${baseKey}-${feet}'<br><button data-key="${baseKey}-${feet}ft" data-price="${total}" data-unit="TOTAL" onclick="addToQuote(this.dataset.key, parseFloat(this.dataset.price), this.dataset.unit)" style="margin-top:5px;padding:3px 10px;background:var(--accent);color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:0.75rem;font-weight:600;white-space:nowrap">+ Add to Quote</button></td>
               <td class="price-cell">${formatPrice(sizedPriceObj)}</td>
               ${netCell(total)}
               <td style="font-size:0.85rem"><strong>${feet} ft.</strong></td>
-              <td style="text-align:center"><button data-key="${baseKey}-${feet}ft" data-price="${total}" data-unit="TOTAL" onclick="addToQuote(this.dataset.key, parseFloat(this.dataset.price), this.dataset.unit)" style="padding:4px 10px;background:var(--accent);color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:0.8rem;font-weight:600;white-space:nowrap">+ Add</button></td>
             </tr></tbody>
           </table>
           <p class="disclaimer" style="margin-top:8px">List price shown.${multiplier ? ` Net price calculated at ×${multiplier} multiplier.` : ' Contact NGP for net pricing.'}</p>`;
@@ -1273,14 +1271,12 @@ function doNGPLookup() {
               <th>List Price (June 8, 2026)</th>
               ${netHeader()}
               <th>Size</th>
-              <th></th>
             </tr></thead>
             <tbody><tr>
-              <td class="ngp-cell">${partLabel}</td>
+              <td class="ngp-cell">${partLabel}<br><button data-key="${partLabel.replace(/"/g,'in')}" data-price="${total}" data-unit="TOTAL" onclick="addToQuote(this.dataset.key, parseFloat(this.dataset.price), this.dataset.unit)" style="margin-top:5px;padding:3px 10px;background:var(--accent);color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:0.75rem;font-weight:600;white-space:nowrap">+ Add to Quote</button></td>
               <td class="price-cell">${formatPrice(sizedPriceObj)}</td>
               ${netCell(total)}
               <td style="font-size:0.85rem">${sizeLabel}</td>
-              <td style="text-align:center"><button data-key="${partLabel.replace(/"/g,'in')}" data-price="${total}" data-unit="TOTAL" onclick="addToQuote(this.dataset.key, parseFloat(this.dataset.price), this.dataset.unit)" style="padding:4px 10px;background:var(--accent);color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:0.8rem;font-weight:600;white-space:nowrap">+ Add</button></td>
             </tr></tbody>
           </table>
           <p class="disclaimer" style="margin-top:8px">List price shown.${multiplier ? ` Net price calculated at ×${multiplier} multiplier.` : ' Contact NGP for net pricing.'}</p>`;
@@ -1336,11 +1332,10 @@ function doNGPLookup() {
       }
     }
     return `<tr>
-      <td class="ngp-cell">${key}${priceObj.note ? `<br><span style="font-size:0.78rem;color:#b8860b;font-weight:600">⚠️ ${priceObj.note}</span>` : ''}</td>
+      <td class="ngp-cell">${key}${priceObj.note ? `<br><span style="font-size:0.78rem;color:#b8860b;font-weight:600">⚠️ ${priceObj.note}</span>` : ''}<br><button data-key="${key}" data-price="${listPrice}" data-unit="${priceObj.unit||''}" onclick="addToQuote(this.dataset.key, parseFloat(this.dataset.price), this.dataset.unit)" style="margin-top:5px;padding:3px 10px;background:var(--accent);color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:0.75rem;font-weight:600;white-space:nowrap">+ Add to Quote</button></td>
       <td class="price-cell">${formatPrice(priceObj)}</td>
       ${multiplier ? `<td class="price-cell" style="color:#e94560"><strong>$${(listPrice * multiplier).toFixed(2)}</strong></td>` : ''}
       <td style="font-size:0.85rem;line-height:1.7">${sizesCell}</td>
-      <td style="text-align:center"><button data-key="${key}" data-price="${listPrice}" data-unit="${priceObj.unit||''}" onclick="addToQuote(this.dataset.key, parseFloat(this.dataset.price), this.dataset.unit)" style="padding:4px 10px;background:var(--accent);color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:0.8rem;font-weight:600;white-space:nowrap">+ Add</button></td>
     </tr>`;
   }).join('');
 
@@ -1352,7 +1347,6 @@ function doNGPLookup() {
           <th>List Price (June 8, 2026)</th>
           ${netHeader()}
           <th>Stock Sizes</th>
-          <th></th>
         </tr>
       </thead>
       <tbody>${rows}</tbody>
