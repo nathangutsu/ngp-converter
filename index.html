@@ -1423,6 +1423,31 @@ function renderQuote() {
 
   const grandTotal = mult ? totalNet : totalList;
   const grandStyle = mult ? 'color:#e94560;' : '';
+
+  // Shipping estimate logic
+  const shippingChecked = document.getElementById('shipping-checkbox') && document.getElementById('shipping-checkbox').checked;
+  let shippingHTML = '';
+  if (shippingChecked) {
+    const colSpan = mult ? 3 : 2;
+    if (grandTotal >= 2000) {
+      shippingHTML = `<tr>
+        <td colspan="${colSpan}" style="text-align:right;font-weight:600;color:#a0a0b0;padding:6px 8px">Shipping Estimate</td>
+        <td></td>
+        <td class="price-cell" style="color:#4caf50;font-weight:700">PP'D Freight — $0.00</td>
+        <td></td>
+      </tr>`;
+    } else {
+      const raw = grandTotal * 0.10;
+      const shipping = Math.max(30, Math.ceil(raw));
+      shippingHTML = `<tr>
+        <td colspan="${colSpan}" style="text-align:right;font-weight:600;color:#a0a0b0;padding:6px 8px">Shipping Estimate</td>
+        <td></td>
+        <td class="price-cell" style="font-weight:700">$${shipping.toFixed(2)}</td>
+        <td></td>
+      </tr>`;
+    }
+  }
+
   container.innerHTML = `
     <div style="overflow-x:auto">
       <table style="margin-top:0">
@@ -1435,13 +1460,24 @@ function renderQuote() {
           <th></th>
         </tr></thead>
         <tbody>${rows}</tbody>
-        <tfoot><tr>
-          <td colspan="${mult ? 3 : 2}" style="text-align:right;font-weight:700;color:#a0a0b0;padding:12px 8px">Total</td>
-          <td></td>
-          <td class="price-cell" style="${grandStyle}font-size:1.1rem;font-weight:700"><strong>$${grandTotal.toFixed(2)}</strong></td>
-          <td></td>
-        </tr></tfoot>
+        <tfoot>
+          <tr>
+            <td colspan="${mult ? 3 : 2}" style="text-align:right;font-weight:700;color:#a0a0b0;padding:12px 8px">Total</td>
+            <td></td>
+            <td class="price-cell" style="${grandStyle}font-size:1.1rem;font-weight:700"><strong>$${grandTotal.toFixed(2)}</strong></td>
+            <td></td>
+          </tr>
+          ${shippingHTML}
+        </tfoot>
       </table>
+    </div>
+    <div style="margin-top:14px;display:flex;align-items:center;gap:10px">
+      <input type="checkbox" id="shipping-checkbox" onchange="renderQuote()"
+        style="width:16px;height:16px;cursor:pointer;accent-color:#e94560"
+        ${shippingChecked ? 'checked' : ''}>
+      <label for="shipping-checkbox" style="cursor:pointer;font-size:0.9rem;color:#a0a0b0;margin:0">
+        Include Shipping Estimate <span style="font-size:0.8rem">(10% of total, $30 min · free on orders ≥ $2,000)</span>
+      </label>
     </div>`;
 }
 
