@@ -1426,6 +1426,7 @@ function renderQuote() {
 
   // Shipping estimate logic
   const shippingChecked = document.getElementById('shipping-checkbox') && document.getElementById('shipping-checkbox').checked;
+  const ashChecked = document.getElementById('ash-team-checkbox') && document.getElementById('ash-team-checkbox').checked;
   let shippingHTML = '';
   if (shippingChecked) {
     const colSpan = mult ? 3 : 2;
@@ -1446,6 +1447,39 @@ function renderQuote() {
         <td></td>
       </tr>`;
     }
+  }
+
+  // ASH Team email text
+  let ashText = '';
+  if (ashChecked) {
+    const col1 = 16, col2 = 14, col3 = 14, col4 = 6;
+    const pad = (s, n) => String(s).padEnd(n);
+    const line = '─'.repeat(col1 + col2 + (mult ? col3 : 0) + col4 + 14);
+    let hdr = pad('NGP Part #', col1) + pad('List Price', col2);
+    if (mult) hdr += pad(`Net (×${mult})`, col3);
+    hdr += pad('Qty', col4) + 'Extended';
+    const itemLines = quoteItems.map(item => {
+      const listStr = '$' + item.listPrice.toFixed(2) + (item.unit && item.unit !== 'TOTAL' ? '/'+item.unit : '');
+      const netPrice = mult ? +(item.listPrice * mult).toFixed(2) : null;
+      const netStr = mult ? '$' + netPrice.toFixed(2) + (item.unit && item.unit !== 'TOTAL' ? '/'+item.unit : '') : '';
+      const ext = mult ? +(netPrice * item.qty).toFixed(2) : +(item.listPrice * item.qty).toFixed(2);
+      let row = pad(item.key, col1) + pad(listStr, col2);
+      if (mult) row += pad(netStr, col3);
+      row += pad(item.qty, col4) + '$' + ext.toFixed(2);
+      return row;
+    }).join('\n');
+    const totalStr = (mult ? 'Net Total:' : 'Total:').padEnd(col1 + col2 + (mult ? col3 : 0) + col4) + '$' + grandTotal.toFixed(2);
+    let shippingLine = '';
+    if (shippingChecked) {
+      const label = 'Shipping Estimate:'.padEnd(col1 + col2 + (mult ? col3 : 0) + col4);
+      if (grandTotal >= 2000) {
+        shippingLine = '\n' + label + "PP'D Freight — $0.00";
+      } else {
+        const shipping = Math.max(30, Math.ceil(grandTotal * 0.10));
+        shippingLine = '\n' + label + '$' + shipping.toFixed(2);
+      }
+    }
+    ashText = `NGP Price Quote\n${line}\n${hdr}\n${line}\n${itemLines}\n${line}\n${totalStr}${shippingLine}\n${line}`;
   }
 
   container.innerHTML = `
@@ -1475,10 +1509,29 @@ function renderQuote() {
       <input type="checkbox" id="shipping-checkbox" onchange="renderQuote()"
         style="width:16px;height:16px;cursor:pointer;accent-color:#e94560"
         ${shippingChecked ? 'checked' : ''}>
-      <label for="shipping-checkbox" style="cursor:pointer;font-size:0.9rem;color:#a0a0b0;margin:0">
-        Include Shipping Estimate <span style="font-size:0.8rem">(10% of total, $30 min · free on orders ≥ $2,000)</span>
+      <label for="shipping-checkbox" style="cursor:pointer;font-size:0.9rem;color:#333;margin:0">
+        Include Shipping Estimate
       </label>
-    </div>`;
+    </div>
+    <div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-top:4px">
+      <label for="ash-team-checkbox" style="cursor:pointer;font-size:0.75rem;color:#bbb;margin:0;letter-spacing:0.03em">
+        ASH Team
+      </label>
+      <input type="checkbox" id="ash-team-checkbox" onchange="renderQuote()"
+        style="width:13px;height:13px;cursor:pointer;accent-color:#aaa"
+        ${ashChecked ? 'checked' : ''}>
+    </div>
+    ${ashChecked ? `
+    <div style="margin-top:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <span style="font-size:0.8rem;color:#888">Copy &amp; paste into email</span>
+        <button onclick="(()=>{const t=document.getElementById('ash-text');t.select();navigator.clipboard.writeText(t.value);})()"
+          style="padding:4px 12px;background:#555;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:0.8rem;font-weight:600">Copy</button>
+      </div>
+      <textarea id="ash-text" readonly rows="12"
+        style="width:100%;font-family:monospace;font-size:0.82rem;padding:12px;border-radius:8px;border:1px solid #ccc;background:#f9f9f9;color:#222;resize:vertical;line-height:1.6"
+      >${ashText}</textarea>
+    </div>` : ''}`;
 }
 
 document.getElementById('ngp-multiplier').addEventListener('input', function() {
