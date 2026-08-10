@@ -7750,10 +7750,11 @@ function doNGPLookup() {
       const priceObj = DATA.prices[baseKey];
       if (priceObj.unit === 'FT') {
         // Auto-detect roll products: if sizes[] are foot-based (e.g. "17'"), treat number as feet
-        const isRoll = priceObj.sizes && priceObj.sizes.length > 0 && priceObj.sizes[0].endsWith("'");
+        const hasExplicitInch = query.endsWith('"');
+        const isRoll = !hasExplicitInch && priceObj.sizes && priceObj.sizes.length > 0 && priceObj.sizes[0].endsWith("'");
         const feet = isRoll ? rawNum : rawNum / 12;
         const sizeInches = isRoll ? rawNum * 12 : rawNum;
-        const sizeLabel = isRoll ? `${rawNum} ft. (auto-detected as feet)` : `${rawNum}" (${rawNum / 12 % 1 === 0 ? rawNum / 12 + ' ft.' : (rawNum / 12).toFixed(2) + ' ft.'})`;
+        const sizeLabel = isRoll ? `${rawNum} ft. (roll product)` : `${rawNum}" (${rawNum / 12 % 1 === 0 ? rawNum / 12 + ' ft.' : (rawNum / 12).toFixed(2) + ' ft.'})`;
         const partLabel = isRoll ? `${baseKey}-${rawNum}'` : `${baseKey}-${rawNum}"`;
         const total = +(feet * priceObj.price).toFixed(2);
         const sizedPriceObj = { ...priceObj, sizeInches, totalPrice: total };
