@@ -7699,6 +7699,48 @@ function doNGPLookup() {
     }
   }
 
+  // Door dimension detection: PARTNUM-XXYY where XX=width, YY=height (e.g. 160S-3684)
+  const doorDimMatch = query.match(/^(.+?)-?(\d{2})(\d{2})$/);
+  if (doorDimMatch) {
+    const baseKey = resolveBtoDKB(doorDimMatch[1].replace(/-$/, ''));
+    const width = parseInt(doorDimMatch[2], 10);
+    const height = parseInt(doorDimMatch[3], 10);
+    const isDoorDim = width >= 24 && width <= 48 && height >= 78 && height <= 120;
+    if (isDoorDim && DATA.prices[baseKey]) {
+      const priceObj = DATA.prices[baseKey];
+      if (priceObj.unit === 'FT') {
+        const totalInches = width + (2 * height);
+        const totalFeet = +(totalInches / 12).toFixed(4);
+        const total = +(totalFeet * priceObj.price).toFixed(2);
+        const sizedPriceObj = { ...priceObj, totalPrice: total };
+        const partLabel = `${baseKey}-${width}${height}`;
+        const desc = getNGPDescription(baseKey);
+        resultDiv.innerHTML = `
+          <div style="margin-top:16px;padding:10px 14px;background:#0d1f3c;border:1px solid #2a3a5e;border-radius:8px;font-size:0.82rem;color:#a0b8d8;margin-bottom:4px">
+            <strong style="color:#6a9fd8">Door Opening Detected:</strong>
+            ${width}" wide × ${height}" tall &nbsp;|&nbsp;
+            Head: ${width}" + 2 Legs: ${height}" each = <strong style="color:#e8e8e8">${totalInches}" total (${totalFeet % 1 === 0 ? totalFeet : totalFeet.toFixed(2)} ft.)</strong>
+          </div>
+          <table style="margin-top:8px">
+            <thead><tr>
+              <th>NGP Part #</th>
+              <th>List Price (June 8, 2026)</th>
+              ${netHeader()}
+              <th>Door Opening</th>
+            </tr></thead>
+            <tbody><tr>
+              <td class="ngp-cell">${partLabel}${desc ? `<br><span style="font-size:0.78rem;color:#6a9fd8;font-style:italic">${desc}</span>` : ''}<br><button data-key="${partLabel}" data-price="${total}" data-unit="TOTAL" onclick="addToQuote(this.dataset.key, parseFloat(this.dataset.price), this.dataset.unit)" style="margin-top:5px;padding:3px 10px;background:#e94560;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:0.75rem;font-weight:600;white-space:nowrap">+ Add to Quote</button></td>
+              <td class="price-cell"><strong>$${total}</strong><br><span style="font-size:0.75rem;color:#a0a0b0">$${priceObj.price}/ft × ${totalFeet % 1 === 0 ? totalFeet : totalFeet.toFixed(2)} ft.</span></td>
+              ${netCell(total)}
+              <td style="font-size:0.85rem">${width}" × ${height}"</td>
+            </tr></tbody>
+          </table>
+          <p class="disclaimer" style="margin-top:8px">List price shown.${multiplier ? ` Net price calculated at ×${multiplier} multiplier.` : ' Contact NGP for net pricing.'}</p>`;
+        return;
+      }
+    }
+  }
+
   const sizeSuffixMatch = query.match(/^(.+?)[-\s]?(\d{1,3})"?$/)
     || query.match(/^(.+?)(\d{2,3})$/);
   if (sizeSuffixMatch) {
