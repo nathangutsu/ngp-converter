@@ -6883,7 +6883,7 @@ const FINISH_LABEL_MAP = [
 ];
 function getNGPDescription(key) {
   // Strip trailing size suffix (e.g. -36", -48", -36', 36") before lookup
-  const strippedKey = key.replace(/-?\d{1,4}["']?$/, '');
+  const strippedKey = key.replace(/-?\d{1,4}(in|ft|["'])?$/, '');
   const base = NGP_DESCRIPTIONS[key] || (strippedKey !== key ? NGP_DESCRIPTIONS[strippedKey] : null);
   if (!base) return null;
   const lookupKey = NGP_DESCRIPTIONS[key] ? key : strippedKey;
