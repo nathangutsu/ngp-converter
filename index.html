@@ -7861,7 +7861,8 @@ function addToQuote(key, listPrice, unit) {
   if (existing) {
     existing.qty += 1;
   } else {
-    quoteItems.push({ key, listPrice, unit, qty: 1 });
+    const desc = getNGPDescription(key);
+    quoteItems.push({ key, listPrice, unit, qty: 1, desc: desc || null });
   }
   document.getElementById('quote-section').style.display = '';
   renderQuote();
@@ -7902,7 +7903,7 @@ function renderQuote() {
     const extDisplay = mult ? extNet : extList;
     const extStyle = mult ? 'color:#e94560' : '';
     return `<tr>
-      <td class="ngp-cell">${item.key}</td>
+      <td class="ngp-cell">${item.key}${item.desc ? `<br><span style="font-size:0.78rem;color:#6a9fd8;font-style:italic">${item.desc}</span>` : ''}</td>
       <td class="price-cell">$${item.listPrice.toFixed(2)}${unitLabel}</td>
       ${mult ? `<td class="price-cell" style="color:#e94560">$${netPrice.toFixed(2)}${unitLabel}</td>` : ''}
       <td style="text-align:center"><input type="number" min="1" step="1" value="${item.qty}"
