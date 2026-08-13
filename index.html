@@ -7961,6 +7961,7 @@ function renderQuote() {
       let row = pad(item.key, col1) + pad(listStr, col2);
       if (mult) row += pad(netStr, col3);
       row += pad(item.qty, col4) + '$' + ext.toFixed(2);
+      if (item.desc) row += '\n  ' + item.desc;
       return row;
     }).join('\n');
     const totalStr = (mult ? 'Net Total:' : 'Total:').padEnd(col1 + col2 + (mult ? col3 : 0) + col4) + '$' + grandTotal.toFixed(2);
@@ -7974,7 +7975,9 @@ function renderQuote() {
         shippingLine = '\n' + label + '$' + shipping.toFixed(2);
       }
     }
-    ashText = `NGP Price Quote\n${line}\n${hdr}\n${line}\n${itemLines}\n${line}\n${totalStr}${shippingLine}\n${line}`;
+    const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    const disclaimer = `Not NGP company quote.\nBased on today's date: ${today}\nBased on your current buy program and freight terms.`;
+    ashText = `NGP Price Quote\n${line}\n${hdr}\n${line}\n${itemLines}\n${line}\n${totalStr}${shippingLine}\n${line}\n\n${disclaimer}`;
   }
 
   container.innerHTML = `
