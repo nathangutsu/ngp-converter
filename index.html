@@ -7788,7 +7788,11 @@ function doNGPLookup() {
   // If query ends in B (not DKB), also search using DKB equivalent
   const resolvedQuery = resolveBtoDKB(query);
   const matches = Object.entries(DATA.prices)
-    .filter(([key]) => key.includes(resolvedQuery))
+    .filter(([key]) => {
+      const nKey = normalize(key).replace(/[^A-Z0-9]/g, '');
+      const nQuery = resolvedQuery.replace(/[^A-Z0-9]/g, '');
+      return key.includes(resolvedQuery) || normalize(key).includes(resolvedQuery) || nKey.includes(nQuery);
+    })
     .sort(([a], [b]) => {
       // Exact match first, then starts-with, then contains
       if (a === query) return -1;
