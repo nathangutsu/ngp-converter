@@ -7944,40 +7944,64 @@ function renderQuote() {
     }
   }
 
-  // ASH Team email text
-  let ashText = '';
+  // ASH Team email HTML table
+  let ashHTML = '';
   if (ashChecked) {
-    const col1 = 16, col2 = 14, col3 = 14, col4 = 6;
-    const pad = (s, n) => String(s).padEnd(n);
-    const line = '─'.repeat(col1 + col2 + (mult ? col3 : 0) + col4 + 14);
-    let hdr = pad('NGP Part #', col1) + pad('List Price', col2);
-    if (mult) hdr += pad(`Net (×${mult})`, col3);
-    hdr += pad('Qty', col4) + 'Extended';
-    const itemLines = quoteItems.map(item => {
+    const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    const tdStyle = 'padding:7px 12px;border:1px solid #ccc;font-size:13px;font-family:Arial,sans-serif;vertical-align:top;';
+    const thStyle = 'padding:8px 12px;border:1px solid #ccc;font-size:12px;font-family:Arial,sans-serif;background:#0d1f3c;color:#ffffff;text-align:left;font-weight:bold;';
+    const numStyle = tdStyle + 'text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;';
+    const netHdr = mult ? `<th style="${thStyle}">Net (×${mult})</th>` : '';
+    const itemRows = quoteItems.map((item, i) => {
       const listStr = '$' + item.listPrice.toFixed(2) + (item.unit && item.unit !== 'TOTAL' ? '/'+item.unit : '');
       const netPrice = mult ? +(item.listPrice * mult).toFixed(2) : null;
       const netStr = mult ? '$' + netPrice.toFixed(2) + (item.unit && item.unit !== 'TOTAL' ? '/'+item.unit : '') : '';
       const ext = mult ? +(netPrice * item.qty).toFixed(2) : +(item.listPrice * item.qty).toFixed(2);
-      let row = pad(item.key, col1) + pad(listStr, col2);
-      if (mult) row += pad(netStr, col3);
-      row += pad(item.qty, col4) + '$' + ext.toFixed(2);
-      if (item.desc) row += '\n  ' + item.desc;
-      return row;
-    }).join('\n');
-    const totalStr = (mult ? 'Net Total:' : 'Total:').padEnd(col1 + col2 + (mult ? col3 : 0) + col4) + '$' + grandTotal.toFixed(2);
-    let shippingLine = '';
+      const bg = i % 2 === 0 ? '#ffffff' : '#f5f7fa';
+      const netCell = mult ? `<td style="${numStyle}background:${bg}">${netStr}</td>` : '';
+      const descHtml = item.desc ? `<br><span style="font-size:11px;color:#666;font-style:italic">${item.desc}</span>` : '';
+      return `<tr>
+        <td style="${tdStyle}background:${bg}"><strong>${item.key}</strong>${descHtml}</td>
+        <td style="${numStyle}background:${bg}">${listStr}</td>
+        ${netCell}
+        <td style="${tdStyle}text-align:center;background:${bg}">${item.qty}</td>
+        <td style="${numStyle}background:${bg}"><strong>$${ext.toFixed(2)}</strong></td>
+      </tr>`;
+    }).join('');
+    let shippingRow = '';
     if (shippingChecked) {
-      const label = 'Shipping Estimate:'.padEnd(col1 + col2 + (mult ? col3 : 0) + col4);
+      const colspan = mult ? 4 : 3;
       if (grandTotal >= 2000) {
-        shippingLine = '\n' + label + "PP'D Freight — $0.00";
+        shippingRow = `<tr><td colspan="${colspan}" style="${tdStyle}text-align:right;background:#f5f7fa;font-weight:bold">Shipping Estimate</td><td style="${numStyle}background:#f5f7fa">PP'D Freight — $0.00</td></tr>`;
       } else {
         const shipping = Math.max(30, Math.ceil(grandTotal * 0.10));
-        shippingLine = '\n' + label + '$' + shipping.toFixed(2);
+        shippingRow = `<tr><td colspan="${colspan}" style="${tdStyle}text-align:right;background:#f5f7fa;font-weight:bold">Shipping Estimate</td><td style="${numStyle}background:#f5f7fa">$${shipping.toFixed(2)}</td></tr>`;
       }
     }
-    const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-    const disclaimer = `Not NGP company quote.\nBased on today's date: ${today}\nBased on your current buy program and freight terms.`;
-    ashText = `NGP Price Quote\n${line}\n${hdr}\n${line}\n${itemLines}\n${line}\n${totalStr}${shippingLine}\n${line}\n\n${disclaimer}`;
+    const colspan = mult ? 4 : 3;
+    const totalLabel = mult ? 'Net Total' : 'Total';
+    ashHTML = `<table style="border-collapse:collapse;width:100%;font-family:Arial,sans-serif;">
+      <thead><tr>
+        <th style="${thStyle}">NGP Part #</th>
+        <th style="${thStyle}text-align:right;">List Price</th>
+        ${netHdr}
+        <th style="${thStyle}text-align:center;">Qty</th>
+        <th style="${thStyle}text-align:right;">Extended</th>
+      </tr></thead>
+      <tbody>${itemRows}</tbody>
+      <tfoot>
+        ${shippingRow}
+        <tr>
+          <td colspan="${colspan}" style="${tdStyle}text-align:right;font-weight:bold;background:#f0f0f0">${totalLabel}</td>
+          <td style="${numStyle}font-weight:bold;font-size:14px;background:#f0f0f0;color:#c0392b">$${grandTotal.toFixed(2)}</td>
+        </tr>
+      </tfoot>
+    </table>
+    <p style="margin-top:12px;font-size:11px;color:#666;font-family:Arial,sans-serif;line-height:1.6;border-left:3px solid #c0392b;padding-left:8px">
+      Not NGP company quote.<br>
+      Based on today's date: ${today}<br>
+      Based on your current buy program and freight terms.
+    </p>`;
   }
 
   container.innerHTML = `
@@ -8021,14 +8045,35 @@ function renderQuote() {
     </div>
     ${ashChecked ? `
     <div style="margin-top:14px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
         <span style="font-size:0.8rem;color:#888">Copy &amp; paste into email</span>
-        <button onclick="(()=>{const t=document.getElementById('ash-text');t.select();navigator.clipboard.writeText(t.value);})()"
-          style="padding:4px 12px;background:#555;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:0.8rem;font-weight:600">Copy</button>
+        <button onclick="(()=>{
+          const el = document.getElementById('ash-table-preview');
+          const html = el.innerHTML;
+          try {
+            const blob = new Blob([html], {type:'text/html'});
+            const item = new ClipboardItem({'text/html': blob});
+            navigator.clipboard.write([item]).then(()=>{
+              const btn = event.target;
+              btn.textContent = 'Copied!';
+              btn.style.background = '#27ae60';
+              setTimeout(()=>{ btn.textContent = 'Copy for Email'; btn.style.background = '#555'; }, 2000);
+            });
+          } catch(e) {
+            const range = document.createRange();
+            range.selectNode(el);
+            window.getSelection().removeAllRanges();
+            window.getSelection().addRange(range);
+            document.execCommand('copy');
+            window.getSelection().removeAllRanges();
+          }
+        })()"
+          style="padding:4px 14px;background:#555;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:0.8rem;font-weight:600">Copy for Email</button>
       </div>
-      <textarea id="ash-text" readonly rows="12"
-        style="width:100%;font-family:monospace;font-size:0.82rem;padding:12px;border-radius:8px;border:1px solid #ccc;background:#f9f9f9;color:#222;resize:vertical;line-height:1.6"
-      >${ashText}</textarea>
+      <div id="ash-table-preview"
+        style="border:1px solid #ccc;border-radius:8px;padding:16px;background:#fff;overflow-x:auto">
+        ${ashHTML}
+      </div>
     </div>` : ''}`;
 }
 
