@@ -7183,7 +7183,7 @@ function lookupZEROBase(key) {
 }
 
 function lookupNGP(brand, partNum) {
-  const key = normalize(partNum);
+  let key = normalize(partNum);
 
   if (brand === 'zero') {
     // Base lookup with finish detection
@@ -7235,6 +7235,13 @@ function lookupNGP(brand, partNum) {
       }
     }
     return null;
+  }
+
+  // PEMKO: strip hyphens from input so "434-APKL" matches the same as "434APKL"
+  if (key.includes('-')) {
+    const dehyphenated = key.replace(/-/g, '');
+    // Only strip if dehyphenated form has any chance of matching (pemko data never uses hyphens)
+    if (!DATA.pemko[key]) key = dehyphenated;
   }
 
   // PEMKO: detect XBL (Black Brush → NGP -BB) — xBL / XBL / x BL all normalize to XBL
@@ -7990,9 +7997,19 @@ function renderQuote() {
   // Shipping estimate logic
   const shippingChecked = document.getElementById('shipping-checkbox') && document.getElementById('shipping-checkbox').checked;
   const ashChecked = document.getElementById('ash-team-checkbox') && document.getElementById('ash-team-checkbox').checked;
+
+  // Long length freight: $150 net if any item exceeds 94"
+  // Keys store inches as "-108in" or "-108\"" depending on path
+  const hasLongLength = quoteItems.some(item => {
+    const m = item.key.match(/-(\d+)(?:in|")/);
+    return m && parseInt(m[1], 10) > 94;
+  });
+  const longLengthCharge = 150;
+
   let shippingHTML = '';
   if (shippingChecked) {
     const colSpan = mult ? 3 : 2;
+    let freightCost = 0;
     if (grandTotal >= 2000) {
       shippingHTML = `<tr>
         <td colspan="${colSpan}" style="text-align:right;font-weight:600;color:#a0a0b0;padding:6px 8px">Shipping Estimate</td>
@@ -8002,11 +8019,30 @@ function renderQuote() {
       </tr>`;
     } else {
       const raw = grandTotal * 0.10;
-      const shipping = Math.max(30, Math.ceil(raw));
+      const shipping = Math.max(40, Math.ceil(raw));
+      freightCost += shipping;
       shippingHTML = `<tr>
         <td colspan="${colSpan}" style="text-align:right;font-weight:600;color:#a0a0b0;padding:6px 8px">Shipping Estimate</td>
         <td></td>
         <td class="price-cell" style="font-weight:700">$${shipping.toFixed(2)}</td>
+        <td></td>
+      </tr>`;
+    }
+    if (hasLongLength) {
+      freightCost += longLengthCharge;
+      shippingHTML += `<tr>
+        <td colspan="${colSpan}" style="text-align:right;font-weight:600;color:#a0a0b0;padding:6px 8px">Long Length Freight</td>
+        <td></td>
+        <td class="price-cell" style="font-weight:700">$${longLengthCharge.toFixed(2)} net</td>
+        <td></td>
+      </tr>`;
+    }
+    if (freightCost > 0) {
+      const totalWithFreight = grandTotal + freightCost;
+      shippingHTML += `<tr>
+        <td colspan="${colSpan}" style="text-align:right;font-weight:700;color:#a0a0b0;padding:8px 8px">Total with Freight</td>
+        <td></td>
+        <td class="price-cell" style="font-weight:700">$${totalWithFreight.toFixed(2)}</td>
         <td></td>
       </tr>`;
     }
@@ -8039,11 +8075,21 @@ function renderQuote() {
     let shippingRow = '';
     if (shippingChecked) {
       const colspan = mult ? 4 : 3;
+      let ashFreight = 0;
       if (grandTotal >= 2000) {
         shippingRow = `<tr><td colspan="${colspan}" style="${tdStyle}text-align:right;background:#f5f7fa;font-weight:bold">Shipping Estimate</td><td style="${numStyle}background:#f5f7fa">PP'D Freight — $0.00</td></tr>`;
       } else {
-        const shipping = Math.max(30, Math.ceil(grandTotal * 0.10));
+        const shipping = Math.max(40, Math.ceil(grandTotal * 0.10));
+        ashFreight += shipping;
         shippingRow = `<tr><td colspan="${colspan}" style="${tdStyle}text-align:right;background:#f5f7fa;font-weight:bold">Shipping Estimate</td><td style="${numStyle}background:#f5f7fa">$${shipping.toFixed(2)}</td></tr>`;
+      }
+      if (hasLongLength) {
+        ashFreight += longLengthCharge;
+        shippingRow += `<tr><td colspan="${colspan}" style="${tdStyle}text-align:right;background:#f5f7fa;font-weight:bold">Long Length Freight</td><td style="${numStyle}background:#f5f7fa">$${longLengthCharge.toFixed(2)} net</td></tr>`;
+      }
+      if (ashFreight > 0) {
+        const ashTotalWithFreight = grandTotal + ashFreight;
+        shippingRow += `<tr><td colspan="${colspan}" style="${tdStyle}text-align:right;background:#f5f7fa;font-weight:bold">Total with Freight</td><td style="${numStyle}background:#f5f7fa;font-weight:bold">$${ashTotalWithFreight.toFixed(2)}</td></tr>`;
       }
     }
     const colspan = mult ? 4 : 3;
@@ -8068,7 +8114,8 @@ function renderQuote() {
     <p style="margin-top:12px;font-size:11px;color:#666;font-family:Arial,sans-serif;line-height:1.6;border-left:3px solid #c0392b;padding-left:8px">
       NGP pricing request completed by the ASH Team<br>
       Based on today's date: ${today}<br>
-      Based on your current buy program and freight terms.
+      Based on your current buy program.<br>
+      Orders less than $2,500 are shipped best method; freight charges added to invoice, unless otherwise arranged by customer. Minimum freight charge: $40 on any order.
     </p>`;
   }
 
