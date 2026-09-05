@@ -8104,11 +8104,11 @@ function renderQuote() {
       </tr></thead>
       <tbody>${itemRows}</tbody>
       <tfoot>
-        ${shippingRow}
-        <tr>
+        ${!shippingChecked ? `<tr>
           <td colspan="${colspan}" style="${tdStyle}text-align:right;font-weight:bold;background:#f0f0f0">${totalLabel}</td>
           <td style="${numStyle}font-weight:bold;font-size:14px;background:#f0f0f0;color:#c0392b">$${grandTotal.toFixed(2)}</td>
-        </tr>
+        </tr>` : ''}
+        ${shippingRow}
       </tfoot>
     </table>
     <p style="margin-top:12px;font-size:11px;color:#666;font-family:Arial,sans-serif;line-height:1.6;border-left:3px solid #c0392b;padding-left:8px">
@@ -8132,12 +8132,12 @@ function renderQuote() {
         </tr></thead>
         <tbody>${rows}</tbody>
         <tfoot>
-          <tr>
+          ${!shippingChecked ? `<tr>
             <td colspan="${mult ? 3 : 2}" style="text-align:right;font-weight:700;color:#a0a0b0;padding:12px 8px">Total</td>
             <td></td>
             <td class="price-cell" style="${grandStyle}font-size:1.1rem;font-weight:700"><strong>$${grandTotal.toFixed(2)}</strong></td>
             <td></td>
-          </tr>
+          </tr>` : ''}
           ${shippingHTML}
         </tfoot>
       </table>
