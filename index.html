@@ -8008,10 +8008,15 @@ function renderQuote() {
   const ashChecked = document.getElementById('ash-team-checkbox') && document.getElementById('ash-team-checkbox').checked;
 
   // Long length freight: $150 net if any item exceeds 94"
-  // Keys store inches as "-108in" or "-108\"" depending on path
+  // Keys can be "-108in", "-108\"", or door dim format "-4896" (48x96 → height=96)
   const hasLongLength = quoteItems.some(item => {
-    const m = item.key.match(/-(\d+)(?:in|")/);
-    return m && parseInt(m[1], 10) > 94;
+    // Sized item: e.g. 137NA-108in or 137NA-108"
+    const sizeMatch = item.key.match(/-(\d+)(?:in|")/);
+    if (sizeMatch && parseInt(sizeMatch[1], 10) > 94) return true;
+    // Door dim item: e.g. 137NA-4896 (last 2 digits = height in inches)
+    const doorMatch = item.key.match(/-(\d{2})(\d{2})$/);
+    if (doorMatch && parseInt(doorMatch[2], 10) > 94) return true;
+    return false;
   });
   const longLengthCharge = 150;
 
@@ -8158,6 +8163,10 @@ function renderQuote() {
       <label for="shipping-checkbox" style="cursor:pointer;font-size:0.9rem;color:#333;margin:0">
         Include Shipping Estimate
       </label>
+    </div>
+    <div style="margin-top:4px;margin-left:26px;font-size:0.75rem;color:#888;line-height:1.5">
+      Orders &lt;$2,500: ~10% freight (min. $40). Orders ≥$2,500: PP'D.<br>
+      Long Length Freight: $150 net on any order with a product longer than 94".
     </div>
     <div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-top:4px">
       <label for="ash-team-checkbox" style="cursor:pointer;font-size:0.75rem;color:#bbb;margin:0;letter-spacing:0.03em">
