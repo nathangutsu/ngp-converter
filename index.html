@@ -7780,8 +7780,13 @@ function doNGPLookup() {
     const height = parseInt(doorDimMatch[3], 10);
     const isDoorDim = width >= 24 && width <= 96 && height >= 78 && height <= 120;
     if (isDoorDim && DATA.prices[baseKey]) {
-      const priceObj = DATA.prices[baseKey];
-      if (priceObj.unit === 'FT') {
+      // For SET items, use the base part's per-foot price (SET = pre-cut pieces, same rate)
+      const isSetKey = baseKey.replace(/[^A-Z0-9]/g, '').endsWith('SET');
+      const priceKey = isSetKey
+        ? (DATA.prices[baseKey.replace(/\s*\(SET\)/i, '').trim()] ? baseKey.replace(/\s*\(SET\)/i, '').trim() : baseKey)
+        : baseKey;
+      const priceObj = DATA.prices[priceKey];
+      if (priceObj && priceObj.unit === 'FT') {
         const totalInches = width + (2 * height);
         const totalFeet = +(totalInches / 12).toFixed(4);
         const total = +(totalFeet * priceObj.price).toFixed(2);
