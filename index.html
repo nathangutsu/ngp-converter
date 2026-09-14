@@ -7781,10 +7781,12 @@ function doNGPLookup() {
     const isDoorDim = width >= 24 && width <= 96 && height >= 78 && height <= 120;
     if (isDoorDim && DATA.prices[baseKey]) {
       // For SET items, use the base part's per-foot price (SET = pre-cut pieces, same rate)
+      // Exception: astragal SET parts (600, 672, 675, 9600, 9605, A605, B606 series) are pairs — keep SET price
+      const ASTRAGAL_SET_PREFIXES = ['600', '672', '675', '9600', '9605', 'A605', 'B606'];
       const isSetKey = baseKey.replace(/[^A-Z0-9]/g, '').endsWith('SET');
-      const priceKey = isSetKey
-        ? (DATA.prices[baseKey.replace(/\s*\(SET\)/i, '').trim()] ? baseKey.replace(/\s*\(SET\)/i, '').trim() : baseKey)
-        : baseKey;
+      const baseStripped = baseKey.replace(/\s*\(SET\)/i, '').trim();
+      const isAstragal = ASTRAGAL_SET_PREFIXES.some(p => baseStripped.replace(/[^A-Z0-9]/g, '').startsWith(p));
+      const priceKey = (isSetKey && !isAstragal && DATA.prices[baseStripped]) ? baseStripped : baseKey;
       const priceObj = DATA.prices[priceKey];
       if (priceObj && priceObj.unit === 'FT') {
         const totalInches = width + (2 * height);
