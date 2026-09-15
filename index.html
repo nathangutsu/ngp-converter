@@ -2016,8 +2016,8 @@ const NGP_DESCRIPTIONS = {
   "172SVA": "Silicone Dense Bulb Perimeter Seal",
   "172SVB": "Silicone Dense Bulb Perimeter Seal",
   "172SVDKB": "Silicone Dense Bulb Perimeter Seal",
-  "172V": "Mill Aluminum Finish, Vinyl Door Shoe",
-  "172VA": "Door Shoe, Vinyl, Anodized Aluminum",
+  "172V": "Mill Aluminum Finish, Vinyl Perimeter Seal with Concealed Fasteners",
+  "172VA": "Anodized Aluminum Finish, Vinyl Perimeter Seal with Concealed Fasteners",
   "172VB": "Mill Aluminum Finish, Vinyl Door Shoe",
   "172VDKB": "Mill Aluminum Finish, Vinyl Door Shoe",
   "172VEB": "Mill Aluminum Finish, Vinyl Door Shoe",
@@ -6999,6 +6999,10 @@ const PEMKO_FINISH_MAP = [
   { pemko: 'C',   ngp: 'A'   },
   { pemko: 'D',   ngp: 'DKB' },
 ];
+
+function fmtMoney(n) {
+  return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
 
 function normalize(str) {
   return str.trim().toUpperCase().replace(/\s+/g, '');
