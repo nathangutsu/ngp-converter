@@ -371,23 +371,16 @@
 
 <div class="container">
 
-  <!-- Single Lookup -->
+  <!-- Unified Lookup -->
   <div class="card">
-    <div class="section-title">Single Part Lookup</div>
-
-    <div class="brand-tabs">
-      <button class="brand-tab active" onclick="setActiveBrand('pemko', this)">PEMKO</button>
-      <button class="brand-tab" onclick="setActiveBrand('zero', this)">ZERO</button>
-    </div>
-
+    <div class="section-title">Part Number Lookup</div>
+    <p class="hint" style="margin-bottom:10px">Enter a PEMKO or NGP part number — the tool will cross-reference and price automatically.</p>
     <div class="search-row">
-      <input type="text" id="part-input" placeholder="Enter part number (e.g. 55, S88, B75)"
-             onkeydown="if(event.key==='Enter') doLookup()" autocomplete="off" spellcheck="false">
-      <button onclick="doLookup()">Look Up</button>
+      <input type="text" id="unified-input" placeholder="Enter PEMKO or NGP part number (e.g. 303AS, 137NA-3684, 160S-96&quot;)"
+             onkeydown="if(event.key==='Enter') doUnifiedLookup()" autocomplete="off" spellcheck="false">
+      <button onclick="doUnifiedLookup()">Look Up</button>
     </div>
-    <p class="hint">Tip: Part numbers are case-insensitive. Do not include finish suffix (A, DKB, BR, etc.) &mdash; enter the base part number only.</p>
-
-    <div id="result"></div>
+    <div id="unified-result"></div>
   </div>
 
   <!-- NGP Direct Price Lookup -->
@@ -399,8 +392,8 @@
              onkeydown="if(event.key==='Enter') doNGPLookup()" autocomplete="off" spellcheck="false">
       <input type="number" id="ngp-multiplier" placeholder="Multiplier (e.g. .40)"
              step="0.01" min="0.01" max="1" style="width:160px;flex-shrink:0"
-             onkeydown="if(event.key==='Enter') doNGPLookup()">
-      <button onclick="doNGPLookup()">Search</button>
+             onkeydown="if(event.key==='Enter') { doNGPLookup(); if(document.getElementById('unified-input').value.trim()) doUnifiedLookup(); }">
+      <button onclick="doNGPLookup(); if(document.getElementById('unified-input').value.trim()) doUnifiedLookup();">Search</button>
     </div>
     <p class="hint">Partial matches supported — entering "35EV" will return 35EV, 35EVDKB, and all other variants.</p>
 
@@ -416,27 +409,23 @@
     <div id="quote-table-container"></div>
   </div>
 
-  <!-- Batch Lookup -->
+  <!-- Single Part Cross-Reference Lookup -->
   <div class="card">
-    <div class="section-title">
-      Batch Lookup
-      <span class="badge">Multi-Part</span>
-    </div>
+    <div class="section-title">Single Part Cross-Reference</div>
 
     <div class="brand-tabs">
-      <button class="brand-tab active" onclick="setActiveBatchBrand('pemko', this)">PEMKO</button>
-      <button class="brand-tab" onclick="setActiveBatchBrand('zero', this)">ZERO</button>
+      <button class="brand-tab active" onclick="setActiveBrand('pemko', this)">PEMKO</button>
+      <button class="brand-tab" onclick="setActiveBrand('zero', this)">ZERO</button>
     </div>
 
-    <textarea id="batch-input" placeholder="Enter one part number per line:
-55
-S88
-B75
-145B"></textarea>
-    <br>
-    <button class="btn-secondary" onclick="doBatchLookup()">Look Up All</button>
+    <div class="search-row">
+      <input type="text" id="part-input" placeholder="Enter part number (e.g. 55, S88, B75)"
+             onkeydown="if(event.key==='Enter') doLookup()" autocomplete="off" spellcheck="false">
+      <button onclick="doLookup()">Look Up</button>
+    </div>
+    <p class="hint">Tip: Part numbers are case-insensitive. Do not include finish suffix (A, DKB, BR, etc.) &mdash; enter the base part number only.</p>
 
-    <div id="batch-result"></div>
+    <div id="result"></div>
   </div>
 
 </div>
@@ -7211,7 +7200,7 @@ function lookupNGP(brand, partNum) {
           const isRollProduct = priceEntry && priceEntry.sizes && priceEntry.sizes.length > 0
               && priceEntry.sizes[0].endsWith("'");
           const hasInchVariants = Object.keys(DATA.prices).some(k => k.startsWith(ngpBase + '-') && k.endsWith('"'));
-          if (isRollProduct || (inches <= 25 && !hasInchVariants)) {
+          if (inches <= 25 && (isRollProduct || !hasInchVariants)) {
             inches = inches * 12;
             sizeInFeet = true;
           }
@@ -7302,7 +7291,7 @@ function lookupNGP(brand, partNum) {
         const isRollProduct = priceEntry && priceEntry.sizes && priceEntry.sizes.length > 0
             && priceEntry.sizes[0].endsWith("'");
         const hasInchVariants = Object.keys(DATA.prices).some(k => k.startsWith(ngpBase + '-') && k.endsWith('"'));
-        if (isRollProduct || (inches <= 25 && !hasInchVariants)) {
+        if (inches <= 25 && (isRollProduct || !hasInchVariants)) {
           inches = inches * 12;
           sizeInFeet = true;
         }
@@ -7521,8 +7510,114 @@ function sizesTag(priceObj) {
   return `<div class="sizes-tag">Stock sizes &amp; total price: ${items}</div>`;
 }
 
+function normalizeInput(raw) {
+  let s = raw.trim();
+  // Step 1: remove inch/foot marks adjacent to digits  e.g. 84" → 84
+  s = s.replace(/(\d)['"]/g, '$1');
+  // Step 2: "PARTNUM x/X DIM" where x/X is surrounded by spaces → "PARTNUM-DIM"
+  //         e.g. "29310CPK X 84" → "29310CPK-84"
+  s = s.replace(/\s+[xX]\s+(\d)/g, '-$1');
+  // Step 2b: "PARTNUMx/XDIM" where letter immediately precedes x/X then digit → "PARTNUM-DIM"
+  //          e.g. "29310CPKx84" → "29310CPK-84"
+  s = s.replace(/([A-Za-z])[xX](\d)/g, '$1-$2');
+  // Step 3: WxH / WXH (digits on both sides, no spaces) → WH
+  //         e.g. "36x84" → "3684", "137NA 36x84" → "137NA 3684"
+  s = s.replace(/(\d+)[xX](\d+)/g, '$1$2');
+  // Step 4: letter/digit followed by space then digit → insert hyphen
+  //         e.g. "29310CPK 84" → "29310CPK-84", "137NA 3684" → "137NA-3684"
+  s = s.replace(/([A-Za-z0-9])\s+(\d)/g, '$1-$2');
+  // Step 5: collapse double hyphens
+  s = s.replace(/--+/g, '-');
+  // Step 6: strip trailing color/finish word after a size  e.g. "S88BL-17 BLK" → "S88BL-17"
+  s = s.replace(/(-\d+)\s+[A-Za-z]+$/, '$1');
+  return s.trim();
+}
+
+function doUnifiedLookup() {
+  const input = normalizeInput(document.getElementById('unified-input').value);
+  const resultDiv = document.getElementById('unified-result');
+  if (!input) { resultDiv.innerHTML = ''; return; }
+
+  const multiplierRaw = parseFloat(document.getElementById('ngp-multiplier').value);
+  const multiplier = (!isNaN(multiplierRaw) && multiplierRaw > 0 && multiplierRaw <= 1) ? multiplierRaw : null;
+
+  // 1. Try PEMKO cross-reference first
+  const pemkoResult = lookupNGP('pemko', input);
+  if (pemkoResult) {
+    const { ngp: ngpRaw, finishInfo, sizeInfo, doorInfo, tekInfo, bbInfo } = pemkoResult;
+    const ngpParts = ngpRaw.split(',').map(s => s.trim()).filter(Boolean);
+    const effectiveInches = doorInfo ? doorInfo.totalInches : (sizeInfo ? sizeInfo.inches : null);
+
+    const rows = ngpParts.map(ngp => {
+      const priceObj = lookupPrice(ngp, effectiveInches, doorInfo || null, tekInfo || null);
+      const priceStr = priceObj ? formatPrice(priceObj) : 'Contact NGP';
+      const listPrice = priceObj ? (priceObj.totalPrice ?? priceObj.price) : null;
+      const netStr = (multiplier && listPrice != null)
+        ? `<td class="price-cell" style="color:#e94560;font-weight:600">$${(listPrice * multiplier).toFixed(2)} net</td>`
+        : (multiplier ? '<td></td>' : '');
+      // Build a descriptive key for the quote (include size/door dims if applicable)
+      let quoteKey = ngp;
+      if (doorInfo) quoteKey = `${ngp}-${doorInfo.header}${doorInfo.jamb}`;
+      else if (sizeInfo) quoteKey = `${ngp}-${sizeInfo.inches}in`;
+      const desc = getNGPDescription(ngp.replace(/-\d+(in|")?$/, '')) || '';
+      const addUnit = priceObj ? (priceObj.totalPrice != null ? 'TOTAL' : priceObj.unit || '') : '';
+      const addBtn = listPrice != null
+        ? `<button data-key="${quoteKey}" data-price="${listPrice}" data-unit="${addUnit}"
+             onclick="addToQuote(this.dataset.key, parseFloat(this.dataset.price), this.dataset.unit)"
+             style="margin-top:5px;padding:3px 10px;background:#e94560;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:0.75rem;font-weight:600;white-space:nowrap">+ Add to Quote</button>`
+        : '';
+      return { row: `<tr>
+        <td class="ngp-cell">${quoteKey}${desc ? `<br><span style="font-size:0.78rem;color:#6a9fd8;font-style:italic">${desc}</span>` : ''}<br>${addBtn}</td>
+        <td class="price-cell">${priceStr}</td>
+        ${netStr}
+      </tr>` };
+    });
+
+    const crossLabel = finishInfo
+      ? `PEMKO <strong>${input.toUpperCase()}</strong> → NGP &nbsp;<span style="font-size:0.8rem;opacity:0.7">(finish: ${finishInfo.pemkoFinish} → ${finishInfo.ngpFinish || 'mill aluminum'})</span>`
+      : `PEMKO <strong>${input.toUpperCase()}</strong> → NGP`;
+
+    let bannerHTML = '';
+    if (doorInfo) {
+      bannerHTML = `<div style="margin-bottom:10px;padding:8px 12px;background:#0d1f3c;border:1px solid #2a3a5e;border-radius:6px;font-size:0.82rem;color:#a0b8d8">
+        Door Opening: <strong>${doorInfo.header}"</strong> wide × <strong>${doorInfo.jamb}"</strong> tall &nbsp;|&nbsp;
+        ${doorInfo.header}" + 2×${doorInfo.jamb}" = <strong style="color:#e8e8e8">${doorInfo.totalInches}" total (${(doorInfo.totalInches/12).toFixed(2)} ft.)</strong>
+      </div>`;
+    } else if (sizeInfo) {
+      bannerHTML = `<div style="margin-bottom:10px;padding:8px 12px;background:#0d1f3c;border:1px solid #2a3a5e;border-radius:6px;font-size:0.82rem;color:#a0b8d8">
+        Size: <strong style="color:#e8e8e8">${sizeInfo.inches}"</strong>
+      </div>`;
+    }
+
+    resultDiv.innerHTML = `
+      <div class="result-card found" style="margin-top:16px">
+        <div class="result-label">Cross-Reference</div>
+        <div style="font-size:0.85rem;color:#a0b8d8;margin-bottom:10px">${crossLabel}</div>
+        ${bannerHTML}
+        <table style="margin-top:0">
+          <thead><tr>
+            <th>NGP Part #</th>
+            <th>List Price (June 8, 2026)</th>
+            ${multiplier ? `<th style="color:#e94560">Net Price (×${multiplier})</th>` : ''}
+          </tr></thead>
+          <tbody>${rows.map(r => r.row).join('')}</tbody>
+        </table>
+        <p class="disclaimer" style="margin-top:8px">List price shown.${multiplier ? ` Net price calculated at ×${multiplier} multiplier.` : ' Contact NGP for net pricing.'}</p>
+      </div>`;
+    return;
+  }
+
+  // 2. Fall back to direct NGP price lookup
+  document.getElementById('ngp-input').value = input;
+  doNGPLookup();
+  resultDiv.innerHTML = `<div style="margin-top:12px;padding:10px 14px;font-size:0.85rem;color:#a0a0b0;border:1px solid #2a3a5e;border-radius:6px">
+    Not found in PEMKO cross-reference — showing NGP direct price lookup below.
+  </div>`;
+  document.getElementById('ngp-result').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 function doLookup() {
-  const input = document.getElementById('part-input').value.trim();
+  const input = normalizeInput(document.getElementById('part-input').value);
   const resultDiv = document.getElementById('result');
 
   if (!input) {
@@ -7707,7 +7802,7 @@ function doBatchLookup() {
 }
 
 function doNGPLookup() {
-  const input = document.getElementById('ngp-input').value.trim();
+  const input = normalizeInput(document.getElementById('ngp-input').value);
   const resultDiv = document.getElementById('ngp-result');
   const multiplierRaw = parseFloat(document.getElementById('ngp-multiplier').value);
   const multiplier = (!isNaN(multiplierRaw) && multiplierRaw > 0 && multiplierRaw <= 1) ? multiplierRaw : null;
@@ -7937,10 +8032,6 @@ function doNGPLookup() {
     <p class="disclaimer" style="margin-top:8px">List prices shown.${multiplier ? ` Net price calculated at ×${multiplier} multiplier.` : ' Contact NGP for net pricing.'}</p>`;
 }
 
-// Allow Enter in textarea to not submit but allow newlines
-document.getElementById('batch-input').addEventListener('keydown', function(e) {
-  if (e.key === 'Enter' && e.ctrlKey) doBatchLookup();
-});
 
 // ── Quote List ──────────────────────────────────────────────────────────────
 let quoteItems = [];
