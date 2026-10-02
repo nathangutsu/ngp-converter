@@ -7481,11 +7481,11 @@ function formatPrice(priceObj) {
     const ftLabel = feet % 1 === 0 ? `${feet} ft.` : `${(feet).toFixed(2)} ft.`;
     const nfPart = priceObj.nfAdder ? ', incl. NF adder' : '';
     const doorPart = priceObj.doorInches
-      ? ` <small style="opacity:0.75">(1×${priceObj.doorHeader}" + 2×${priceObj.doorJamb}" = ${inches}" = ${ftLabel} × $${priceObj.price.toFixed(2)}/ft.${nfPart})</small>`
-      : ` <small style="opacity:0.75">(${ftLabel} × $${priceObj.price.toFixed(2)}/ft.${nfPart})</small>`;
-    return `$${priceObj.totalPrice.toFixed(2)} total${doorPart}${insNote}`;
+      ? ` <small style="opacity:0.75">(1×${priceObj.doorHeader}" + 2×${priceObj.doorJamb}" = ${inches}" = ${ftLabel} × $${fmtUSD(priceObj.price)}/ft.${nfPart})</small>`
+      : ` <small style="opacity:0.75">(${ftLabel} × $${fmtUSD(priceObj.price)}/ft.${nfPart})</small>`;
+    return `$${fmtUSD(priceObj.totalPrice)} total${doorPart}${insNote}`;
   }
-  return `$${priceObj.price.toFixed(2)} ${unit}${nfNote}${nNote}${nAvailNote}${bkNote}${tkNote}${insNote}${sizeNote}`;
+  return `$${fmtUSD(priceObj.price)} ${unit}${nfNote}${nNote}${nAvailNote}${bkNote}${tkNote}${insNote}${sizeNote}`;
 }
 
 function parseSize(sizeStr) {
@@ -7504,8 +7504,8 @@ function sizesTag(priceObj) {
   const items = priceObj.sizes.map(sz => {
     const ft = parseSize(sz);
     if (ft === null) return `<span class="size-item">${sz}</span>`;
-    const total = (ft * priceObj.price).toFixed(2);
-    return `<span class="size-item">${sz} = <strong>$${total}</strong></span>`;
+    const total = ft * priceObj.price;
+    return `<span class="size-item">${sz} = <strong>$${fmtUSD(total)}</strong></span>`;
   }).join('');
   return `<div class="sizes-tag">Stock sizes &amp; total price: ${items}</div>`;
 }
@@ -7553,7 +7553,7 @@ function doUnifiedLookup() {
       const priceStr = priceObj ? formatPrice(priceObj) : 'Contact NGP';
       const listPrice = priceObj ? (priceObj.totalPrice ?? priceObj.price) : null;
       const netStr = (multiplier && listPrice != null)
-        ? `<td class="price-cell" style="color:#e94560;font-weight:600">$${(listPrice * multiplier).toFixed(2)} net</td>`
+        ? `<td class="price-cell" style="color:#e94560;font-weight:600">$${fmtUSD(listPrice * multiplier)} net</td>`
         : (multiplier ? '<td></td>' : '');
       // Build a descriptive key for the quote (include size/door dims if applicable)
       let quoteKey = ngp;
@@ -7809,8 +7809,7 @@ function doNGPLookup() {
 
   function netCell(listPrice) {
     if (!multiplier || listPrice == null) return '';
-    const net = (listPrice * multiplier).toFixed(2);
-    return `<td class="price-cell" style="color:#e94560"><strong>$${net}</strong> net</td>`;
+    return `<td class="price-cell" style="color:#e94560"><strong>$${fmtUSD(listPrice * multiplier)}</strong> net</td>`;
   }
   function netHeader() {
     return multiplier ? `<th style="color:#e94560">Net Price (×${multiplier})</th>` : '';
@@ -7909,7 +7908,7 @@ function doNGPLookup() {
             </tr></thead>
             <tbody><tr>
               <td class="ngp-cell">${partLabel}${desc ? `<br><span style="font-size:0.78rem;color:#6a9fd8;font-style:italic">${desc}</span>` : ''}<br><button data-key="${partLabel}" data-price="${total}" data-unit="TOTAL" onclick="addToQuote(this.dataset.key, parseFloat(this.dataset.price), this.dataset.unit)" style="margin-top:5px;padding:3px 10px;background:#e94560;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:0.75rem;font-weight:600;white-space:nowrap">+ Add to Quote</button></td>
-              <td class="price-cell"><strong>$${total}</strong><br><span style="font-size:0.75rem;color:#a0a0b0">$${priceObj.price}/ft × ${totalFeet % 1 === 0 ? totalFeet : totalFeet.toFixed(2)} ft.</span></td>
+              <td class="price-cell"><strong>$${fmtUSD(total)}</strong><br><span style="font-size:0.75rem;color:#a0a0b0">$${fmtUSD(priceObj.price)}/ft × ${totalFeet % 1 === 0 ? totalFeet : totalFeet.toFixed(2)} ft.</span></td>
               ${netCell(total)}
               <td style="font-size:0.85rem">${width}" × ${height}"</td>
             </tr></tbody>
@@ -8000,9 +7999,9 @@ function doNGPLookup() {
         sizesCell = priceObj.sizes.map(sz => {
           const ft = parseSize(sz);
           if (ft === null) return sz;
-          const total = (ft * priceObj.price).toFixed(2);
-          const netPart = multiplier ? ` <span style="color:#e94560">(net $${(ft * priceObj.price * multiplier).toFixed(2)})</span>` : '';
-          return `${sz} = <strong>$${total}</strong>${netPart}`;
+          const total = ft * priceObj.price;
+          const netPart = multiplier ? ` <span style="color:#e94560">(net $${fmtUSD(total * multiplier)})</span>` : '';
+          return `${sz} = <strong>$${fmtUSD(total)}</strong>${netPart}`;
         }).join('<br>');
       } else {
         sizesCell = priceObj.sizes.join(' &bull; ');
@@ -8011,7 +8010,7 @@ function doNGPLookup() {
     return `<tr>
       <td class="ngp-cell">${key}${getNGPDescription(key) ? `<br><span style="font-size:0.78rem;color:#6a9fd8;font-style:italic">${getNGPDescription(key)}</span>` : ''}${priceObj.note ? `<br><span style="font-size:0.78rem;color:#b8860b;font-weight:600">⚠️ ${priceObj.note}</span>` : ''}<br><button data-key="${key}" data-price="${listPrice}" data-unit="${priceObj.unit||''}" onclick="addToQuote(this.dataset.key, parseFloat(this.dataset.price), this.dataset.unit)" style="margin-top:5px;padding:3px 10px;background:#e94560;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:0.75rem;font-weight:600;white-space:nowrap">+ Add to Quote</button></td>
       <td class="price-cell">${formatPrice(priceObj)}</td>
-      ${multiplier ? `<td class="price-cell" style="color:#e94560"><strong>$${(listPrice * multiplier).toFixed(2)}</strong></td>` : ''}
+      ${multiplier ? `<td class="price-cell" style="color:#e94560"><strong>$${fmtUSD(listPrice * multiplier)}</strong></td>` : ''}
       <td style="font-size:0.85rem;line-height:1.7">${sizesCell}</td>
     </tr>`;
   }).join('');
@@ -8065,6 +8064,10 @@ function updateQuoteQty(idx, val) {
   renderQuote();
 }
 
+function fmtUSD(n) {
+  return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 function renderQuote() {
   const container = document.getElementById('quote-table-container');
   if (!container || quoteItems.length === 0) { if (container) container.innerHTML = ''; return; }
@@ -8084,12 +8087,12 @@ function renderQuote() {
     const extStyle = mult ? 'color:#e94560' : '';
     return `<tr>
       <td class="ngp-cell">${item.key}${item.desc ? `<br><span style="font-size:0.78rem;color:#6a9fd8;font-style:italic">${item.desc}</span>` : ''}</td>
-      <td class="price-cell">$${item.listPrice.toFixed(2)}${unitLabel}</td>
-      ${mult ? `<td class="price-cell" style="color:#e94560">$${netPrice.toFixed(2)}${unitLabel}</td>` : ''}
+      <td class="price-cell">$${fmtUSD(item.listPrice)}${unitLabel}</td>
+      ${mult ? `<td class="price-cell" style="color:#e94560">$${fmtUSD(netPrice)}${unitLabel}</td>` : ''}
       <td style="text-align:center"><input type="number" min="1" step="1" value="${item.qty}"
         style="width:64px;padding:4px 6px;text-align:center;border-radius:6px;border:1px solid #2a3a5e;background:#0f1729;color:#e8e8e8;font-size:0.95rem"
         onchange="updateQuoteQty(${idx}, this.value)"></td>
-      <td class="price-cell" style="${extStyle}"><strong>$${extDisplay.toFixed(2)}</strong></td>
+      <td class="price-cell" style="${extStyle}"><strong>$${fmtUSD(extDisplay)}</strong></td>
       <td style="text-align:center"><button onclick="removeFromQuote(${idx})"
         style="background:transparent;border:1px solid #555;color:#888;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:0.8rem">✕</button></td>
     </tr>`;
@@ -8133,7 +8136,7 @@ function renderQuote() {
       shippingHTML = `<tr>
         <td colspan="${colSpan}" style="text-align:right;font-weight:600;color:#a0a0b0;padding:6px 8px">Shipping Estimate</td>
         <td></td>
-        <td class="price-cell" style="font-weight:700">$${shipping.toFixed(2)}</td>
+        <td class="price-cell" style="font-weight:700">$${fmtUSD(shipping)}</td>
         <td></td>
       </tr>`;
     }
@@ -8142,7 +8145,7 @@ function renderQuote() {
       shippingHTML += `<tr>
         <td colspan="${colSpan}" style="text-align:right;font-weight:600;color:#a0a0b0;padding:6px 8px">Long Length Freight</td>
         <td></td>
-        <td class="price-cell" style="font-weight:700">$${longLengthCharge.toFixed(2)} net</td>
+        <td class="price-cell" style="font-weight:700">$${fmtUSD(longLengthCharge)} net</td>
         <td></td>
       </tr>`;
     }
@@ -8151,7 +8154,7 @@ function renderQuote() {
       shippingHTML += `<tr>
         <td colspan="${colSpan}" style="text-align:right;font-weight:700;color:#a0a0b0;padding:8px 8px">Total with Freight</td>
         <td></td>
-        <td class="price-cell" style="font-weight:700">$${totalWithFreight.toFixed(2)}</td>
+        <td class="price-cell" style="font-weight:700">$${fmtUSD(totalWithFreight)}</td>
         <td></td>
       </tr>`;
     }
@@ -8166,10 +8169,10 @@ function renderQuote() {
     const numStyle = tdStyle + 'text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;';
     const netHdr = mult ? `<th style="${thStyle}">Net (×${mult})</th>` : '';
     const itemRows = quoteItems.map((item, i) => {
-      const listStr = '$' + item.listPrice.toFixed(2) + (item.unit && item.unit !== 'TOTAL' ? '/'+item.unit : '');
-      const netPrice = mult ? +(item.listPrice * mult).toFixed(2) : null;
-      const netStr = mult ? '$' + netPrice.toFixed(2) + (item.unit && item.unit !== 'TOTAL' ? '/'+item.unit : '') : '';
-      const ext = mult ? +(netPrice * item.qty).toFixed(2) : +(item.listPrice * item.qty).toFixed(2);
+      const listStr = '$' + fmtUSD(item.listPrice) + (item.unit && item.unit !== 'TOTAL' ? '/'+item.unit : '');
+      const netPrice = mult ? item.listPrice * mult : null;
+      const netStr = mult ? '$' + fmtUSD(netPrice) + (item.unit && item.unit !== 'TOTAL' ? '/'+item.unit : '') : '';
+      const ext = mult ? netPrice * item.qty : item.listPrice * item.qty;
       const bg = i % 2 === 0 ? '#ffffff' : '#f5f7fa';
       const netCell = mult ? `<td style="${numStyle}background:${bg}">${netStr}</td>` : '';
       const descHtml = item.desc ? `<br><span style="font-size:11px;color:#666;font-style:italic">${item.desc}</span>` : '';
@@ -8178,7 +8181,7 @@ function renderQuote() {
         <td style="${numStyle}background:${bg}">${listStr}</td>
         ${netCell}
         <td style="${tdStyle}text-align:center;background:${bg}">${item.qty}</td>
-        <td style="${numStyle}background:${bg}"><strong>$${ext.toFixed(2)}</strong></td>
+        <td style="${numStyle}background:${bg}"><strong>$${fmtUSD(ext)}</strong></td>
       </tr>`;
     }).join('');
     let shippingRow = '';
@@ -8190,15 +8193,15 @@ function renderQuote() {
       } else {
         const shipping = Math.max(40, Math.ceil(grandTotal * 0.10));
         ashFreight += shipping;
-        shippingRow = `<tr><td colspan="${colspan}" style="${tdStyle}text-align:right;background:#f5f7fa;font-weight:bold">Shipping Estimate</td><td style="${numStyle}background:#f5f7fa">$${shipping.toFixed(2)}</td></tr>`;
+        shippingRow = `<tr><td colspan="${colspan}" style="${tdStyle}text-align:right;background:#f5f7fa;font-weight:bold">Shipping Estimate</td><td style="${numStyle}background:#f5f7fa">$${fmtUSD(shipping)}</td></tr>`;
       }
       if (hasLongLength) {
         ashFreight += longLengthCharge;
-        shippingRow += `<tr><td colspan="${colspan}" style="${tdStyle}text-align:right;background:#f5f7fa;font-weight:bold">Long Length Freight</td><td style="${numStyle}background:#f5f7fa">$${longLengthCharge.toFixed(2)} net</td></tr>`;
+        shippingRow += `<tr><td colspan="${colspan}" style="${tdStyle}text-align:right;background:#f5f7fa;font-weight:bold">Long Length Freight</td><td style="${numStyle}background:#f5f7fa">$${fmtUSD(longLengthCharge)} net</td></tr>`;
       }
       if (ashFreight > 0) {
         const ashTotalWithFreight = grandTotal + ashFreight;
-        shippingRow += `<tr><td colspan="${colspan}" style="${tdStyle}text-align:right;background:#f5f7fa;font-weight:bold">Total with Freight</td><td style="${numStyle}background:#f5f7fa;font-weight:bold">$${ashTotalWithFreight.toFixed(2)}</td></tr>`;
+        shippingRow += `<tr><td colspan="${colspan}" style="${tdStyle}text-align:right;background:#f5f7fa;font-weight:bold">Total with Freight</td><td style="${numStyle}background:#f5f7fa;font-weight:bold">$${fmtUSD(ashTotalWithFreight)}</td></tr>`;
       }
     }
     const colspan = mult ? 4 : 3;
@@ -8215,7 +8218,7 @@ function renderQuote() {
       <tfoot>
         <tr>
           <td colspan="${colspan}" style="${tdStyle}text-align:right;font-weight:bold;background:#f0f0f0">${totalLabel}</td>
-          <td style="${numStyle}font-weight:bold;font-size:14px;background:#f0f0f0;color:#c0392b">$${grandTotal.toFixed(2)}</td>
+          <td style="${numStyle}font-weight:bold;font-size:14px;background:#f0f0f0;color:#c0392b">$${fmtUSD(grandTotal)}</td>
         </tr>
         ${shippingRow}
       </tfoot>
@@ -8244,7 +8247,7 @@ function renderQuote() {
           <tr>
             <td colspan="${mult ? 3 : 2}" style="text-align:right;font-weight:700;color:#a0a0b0;padding:12px 8px">Total</td>
             <td></td>
-            <td class="price-cell" style="${grandStyle}font-size:1.1rem;font-weight:700"><strong>$${grandTotal.toFixed(2)}</strong></td>
+            <td class="price-cell" style="${grandStyle}font-size:1.1rem;font-weight:700"><strong>$${fmtUSD(grandTotal)}</strong></td>
             <td></td>
           </tr>
           ${shippingHTML}
