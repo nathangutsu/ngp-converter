@@ -7377,7 +7377,7 @@ function lookupPrice(ngpPart, sizeInches, doorInfo, tekInfo) {
         const note = Math.abs(best.dec - reqInches) > 0.001
           ? `size rounded to ${sizeLabel}" (NGP standard; ${reqInches}" not available)`
           : null;
-        return note ? { ...DATA.prices[best.key], sizeNote: note } : DATA.prices[best.key];
+        return { ...DATA.prices[best.key], resolvedKey: best.key, ...(note ? { sizeNote: note } : {}) };
       }
     }
   }
@@ -7611,11 +7611,14 @@ function doUnifiedLookup() {
         ? `<td class="price-cell" style="color:#e94560;font-weight:600">$${fmtUSD(listPrice * multiplier)} net</td>`
         : (multiplier ? '<td></td>' : '');
       // Build a descriptive key for the quote (include size/door dims if applicable)
-      let quoteKey = ngp;
-      if (doorInfo) quoteKey = `${ngp}-${doorInfo.header}${doorInfo.jamb}`;
-      else if (sizeInfo) quoteKey = `${ngp}-${sizeInfo.inches}in`;
+      // Use resolvedKey from lookupPrice when available (e.g. fractional-inch EA parts like 1390SP-83-1/8")
+      let quoteKey = (priceObj && priceObj.resolvedKey) || ngp;
+      if (!priceObj || !priceObj.resolvedKey) {
+        if (doorInfo) quoteKey = `${ngp}-${doorInfo.header}${doorInfo.jamb}`;
+        else if (sizeInfo) quoteKey = `${ngp}-${sizeInfo.inches}in`;
+      }
       if (fastenerLabel) quoteKey += ` (${fastenerLabel})`;
-      const desc = getNGPDescription(ngp.replace(/-\d+(in|")?$/, '')) || '';
+      const desc = getNGPDescription((priceObj && priceObj.resolvedKey ? priceObj.resolvedKey : ngp).replace(/-\d+(in|")?$/, '').replace(/-\d+-\d+\/\d+"?$/, '')) || '';
       const addUnit = priceObj ? (priceObj.totalPrice != null ? 'TOTAL' : priceObj.unit || '') : '';
       const addBtn = listPrice != null
         ? `<button data-key="${quoteKey}" data-price="${listPrice}" data-unit="${addUnit}"
