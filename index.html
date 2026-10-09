@@ -7578,9 +7578,13 @@ function doUnifiedLookup() {
   const multiplierRaw = parseFloat(document.getElementById('ngp-multiplier').value);
   const multiplier = (!isNaN(multiplierRaw) && multiplierRaw > 0 && multiplierRaw <= 1) ? multiplierRaw : null;
 
-  // 1. Try PEMKO cross-reference first
+  // 1. Try PEMKO, then ZERO cross-reference
   const pemkoResult = lookupNGP('pemko', input);
-  if (pemkoResult) {
+  const zeroResult = !pemkoResult ? lookupNGP('zero', input) : null;
+  const crossResult = pemkoResult || zeroResult;
+  const crossBrand = pemkoResult ? 'PEMKO' : 'ZERO';
+  if (crossResult) {
+    const pemkoResult = crossResult; // reuse variable name for block below
     const { ngp: ngpRaw, finishInfo, sizeInfo, doorInfo, tekInfo, bbInfo } = pemkoResult;
     const ngpParts = ngpRaw.split(',').map(s => s.trim()).filter(Boolean);
     const effectiveInches = doorInfo ? doorInfo.totalInches : (sizeInfo ? sizeInfo.inches : null);
@@ -7618,8 +7622,8 @@ function doUnifiedLookup() {
     });
 
     const crossLabel = finishInfo
-      ? `PEMKO <strong>${input.toUpperCase()}</strong> → NGP &nbsp;<span style="font-size:0.8rem;opacity:0.7">(finish: ${finishInfo.pemkoFinish} → ${finishInfo.ngpFinish || 'mill aluminum'})</span>`
-      : `PEMKO <strong>${input.toUpperCase()}</strong> → NGP`;
+      ? `${crossBrand} <strong>${input.toUpperCase()}</strong> → NGP &nbsp;<span style="font-size:0.8rem;opacity:0.7">(finish: ${finishInfo.pemkoFinish} → ${finishInfo.ngpFinish || 'mill aluminum'})</span>`
+      : `${crossBrand} <strong>${input.toUpperCase()}</strong> → NGP`;
 
     let bannerHTML = '';
     if (doorInfo) {
@@ -7655,7 +7659,7 @@ function doUnifiedLookup() {
   document.getElementById('ngp-input').value = rawUnified.trim();
   doNGPLookup();
   resultDiv.innerHTML = `<div style="margin-top:12px;padding:10px 14px;font-size:0.85rem;color:#a0a0b0;border:1px solid #2a3a5e;border-radius:6px">
-    Not found in PEMKO cross-reference — showing NGP direct price lookup below.
+    Not found in PEMKO or ZERO cross-reference — showing NGP direct price lookup below.
   </div>`;
   document.getElementById('ngp-result').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
