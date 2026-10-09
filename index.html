@@ -7340,36 +7340,44 @@ function lookupPrice(ngpPart, sizeInches, doorInfo, tekInfo) {
 
   // If exact size not found, try rounding up to the next available NGP standard size
   // e.g. 335NA-32" → round up to 335NA-36" (NGP doesn't make 32")
+  // Also handles fractional-inch EA sizes like 1390SP-83-1/8"
   const sizeMatch = exactKey.match(/^(.+)-(\d+)"$/);
   if (sizeMatch) {
     const base = sizeMatch[1];
     const reqInches = parseInt(sizeMatch[2], 10);
-    // Find all available size variants for this base model
-    const variants = Object.entries(DATA.prices)
-      .map(([k, v]) => { const m = k.match(/^(.+)-(\d+)"$/); return m && m[1] === base ? parseInt(m[2], 10) : null; })
-      .filter(n => n !== null)
-      .sort((a, b) => a - b);
-    // If no variants found for exact base, try base+A (mill aluminum default)
-    const searchBase = variants.length > 0 ? base : null;
-    const altBase = variants.length === 0 && DATA.prices[`${base}A-${reqInches}"`] ? base + 'A' : null;
-    const resolvedBase = searchBase || altBase;
-    const resolvedVariants = altBase
-      ? Object.entries(DATA.prices)
-          .map(([k]) => { const m = k.match(/^(.+)-(\d+)"$/); return m && m[1] === altBase ? parseInt(m[2], 10) : null; })
-          .filter(n => n !== null).sort((a, b) => a - b)
-      : variants;
 
-    if (resolvedVariants.length > 0 && resolvedBase) {
-      const useBase = altBase || base;
-      const roundedUp = resolvedVariants.find(n => n >= reqInches) || resolvedVariants[resolvedVariants.length - 1];
-      const roundedKey = `${useBase}-${roundedUp}"`;
-      if (DATA.prices[roundedKey]) {
-        const note = roundedUp !== reqInches
-          ? `size rounded up to ${roundedUp}" (NGP standard; ${reqInches}" not available)`
+    // Parse a price-data key's size to decimal inches; fractional checked first to avoid
+    // whole-number regex grabbing just the last digit of "83-1/8"
+    function parseSizeEntry(k, b) {
+      if (!k.startsWith(b + '-')) return null;
+      let m = k.match(/^.+-(\d+)-(\d+)\/(\d+)"$/);
+      if (m) return { dec: parseInt(m[1], 10) + parseInt(m[2], 10) / parseInt(m[3], 10), key: k };
+      m = k.match(/^.+-(\d+)"$/);
+      if (m) return { dec: parseInt(m[1], 10), key: k };
+      return null;
+    }
+
+    let variants = Object.keys(DATA.prices).map(k => parseSizeEntry(k, base)).filter(Boolean).sort((a,b)=>a.dec-b.dec);
+    let useBase = base;
+    if (variants.length === 0) {
+      const altBase = base + 'A';
+      const altVariants = Object.keys(DATA.prices).map(k => parseSizeEntry(k, altBase)).filter(Boolean).sort((a,b)=>a.dec-b.dec);
+      if (altVariants.length > 0) { variants = altVariants; useBase = altBase; }
+    }
+
+    if (variants.length > 0) {
+      // Fractional-inch products (e.g. thresholds) size slightly under the opening → round down.
+      // Whole-number products need at least the requested size → round up.
+      const allFractional = variants.every(v => !Number.isInteger(v.dec));
+      const best = allFractional
+        ? ([...variants].reverse().find(v => v.dec <= reqInches) || variants[0])
+        : (variants.find(v => v.dec >= reqInches) || variants[variants.length - 1]);
+      if (DATA.prices[best.key]) {
+        const sizeLabel = best.key.match(/-([^"]+)"$/)?.[1];
+        const note = Math.abs(best.dec - reqInches) > 0.001
+          ? `size rounded to ${sizeLabel}" (NGP standard; ${reqInches}" not available)`
           : null;
-        return note
-          ? { ...DATA.prices[roundedKey], sizeNote: note }
-          : DATA.prices[roundedKey];
+        return note ? { ...DATA.prices[best.key], sizeNote: note } : DATA.prices[best.key];
       }
     }
   }
@@ -7421,7 +7429,7 @@ function lookupPrice(ngpPart, sizeInches, doorInfo, tekInfo) {
   // e.g. 225NA has 225NA-36", 225NA-48", 225NA-60" — show them as options
   if (!priceObj) {
     const eaVariants = Object.entries(DATA.prices)
-      .filter(([k, v]) => k.startsWith(key + '-') && k.endsWith('"') && v.unit === 'EA')
+      .filter(([k, v]) => k.startsWith(key + '-') && k.match(/-(\d+)"$/) && v.unit === 'EA')
       .map(([k, v]) => { const m = k.match(/-(\d+)"$/); return { inches: parseInt(m[1]), price: v.price, key: k }; })
       .sort((a, b) => a.inches - b.inches);
     if (eaVariants.length > 0) {
