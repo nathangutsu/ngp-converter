@@ -7701,7 +7701,7 @@ function doUnifiedLookup() {
       const desc = getNGPDescription((priceObj && priceObj.resolvedKey ? priceObj.resolvedKey : ngp).replace(/-\d+(in|")?$/, '').replace(/-\d+-\d+\/\d+"?$/, '')) || '';
       const addUnit = priceObj ? (priceObj.totalPrice != null ? 'TOTAL' : priceObj.unit || '') : '';
       const addBtn = listPrice != null
-        ? `<button data-key="${quoteKey}" data-price="${listPrice}" data-unit="${addUnit}"
+        ? `<button data-key="${quoteKey.replace(/"/g, '&quot;')}" data-price="${listPrice}" data-unit="${addUnit}"
              onclick="addToQuote(this.dataset.key, parseFloat(this.dataset.price), this.dataset.unit)"
              style="margin-top:5px;padding:3px 10px;background:#e94560;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:0.75rem;font-weight:600;white-space:nowrap">+ Add to Quote</button>`
         : '';
@@ -8101,7 +8101,7 @@ function doNGPLookup() {
               <th>Size</th>
             </tr></thead>
             <tbody><tr>
-              <td class="ngp-cell">${partLabel}${fastenerLabel ? ` (${fastenerLabel})` : ''}${getNGPDescription(baseKey) ? `<br><span style="font-size:0.78rem;color:#6a9fd8;font-style:italic">${getNGPDescription(baseKey)}</span>` : ''}<br><button data-key="${partLabel.replace(/"/g,'in')}${fastenerLabel ? ` (${fastenerLabel})` : ''}" data-price="${total}" data-unit="TOTAL" onclick="addToQuote(this.dataset.key, parseFloat(this.dataset.price), this.dataset.unit)" style="margin-top:5px;padding:3px 10px;background:#e94560;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:0.75rem;font-weight:600;white-space:nowrap">+ Add to Quote</button></td>
+              <td class="ngp-cell">${partLabel}${fastenerLabel ? ` (${fastenerLabel})` : ''}${getNGPDescription(baseKey) ? `<br><span style="font-size:0.78rem;color:#6a9fd8;font-style:italic">${getNGPDescription(baseKey)}</span>` : ''}<br><button data-key="${(partLabel.replace(/"/g,'in') + (fastenerLabel ? ` (${fastenerLabel})` : '')).replace(/"/g,'&quot;')}" data-price="${total}" data-unit="TOTAL" onclick="addToQuote(this.dataset.key, parseFloat(this.dataset.price), this.dataset.unit)" style="margin-top:5px;padding:3px 10px;background:#e94560;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:0.75rem;font-weight:600;white-space:nowrap">+ Add to Quote</button></td>
               <td class="price-cell">${formatPrice(sizedPriceObj)}${fastenerNote3}</td>
               ${netCell(total)}
               <td style="font-size:0.85rem">${sizeLabel}</td>
