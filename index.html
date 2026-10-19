@@ -7542,6 +7542,7 @@ function normalizeInput(raw) {
 }
 
 const FASTENER_ADDERS = {
+  // Threshold Fasteners
   'PA': 0.90,
   'LES': 1.40,
   '10-24 MS/LA': 1.65,
@@ -7553,6 +7554,7 @@ const FASTENER_ADDERS = {
   '1/4-20 MS': 0.90,
   '10-24 LA': 1.05,
   '1/4-20 EA': 1.20,
+  // Stainless Steel Threshold Fasteners
   '10-24 SS MS/LA': 2.65,
   '1/4-20 SS MS/EA': 3.05,
   '10 X 1 1/2" SSWS': 1.85,
@@ -7562,6 +7564,84 @@ const FASTENER_ADDERS = {
   'SPANNER 10-24 SSMS/LA': 4.75,
   'SPANNER 1/4-20 SSMS/LA': 6.05,
   'SNB': 4.35,
+  // TEK Self-Drilling SS SMS
+  'TEK 6 X 1/2"': 0.50,
+  'TEK 6 X 3/4"': 0.55,
+  'TEK 6 X 1"': 0.72,
+  'TEK 6 X 1 1/2"': 0.85,
+  'TEK 8 X 3/4"': 0.85,
+  'TEK 8 X 1"': 1.00,
+  'TEK 8 X 1 1/2"': 1.05,
+  'TEK 10 X 3/4"': 1.10,
+  'TEK 10 X 1"': 1.20,
+  'TEK 10 X 1 1/2"': 1.30,
+  'TEK 12 X 1 1/2"': 1.40,
+  // TORX Security Screws
+  'TORX 6 X 3/4" SS': 2.50,
+  'TORX 6 X 1"': 2.85,
+  'TORX 6 X 1 1/2"': 3.25,
+  'TORX 8 X 3/4"': 3.25,
+  'TORX 8 X 1"': 3.30,
+  'TORX 10 X 3/4"': 4.00,
+  'TORX 10 X 1"': 4.00,
+  'TORX 10 X 1 1/2"': 4.10,
+  'TORX 10-24 X 1 1/2" MS': 4.00,
+  'TORX 10-24 X 1 1/2" MS/LA': 4.75,
+  'TORX 12 X 1"': 4.40,
+  'TORX 12 X 1 1/2"': 4.60,
+  'TORX 1/4-20 X 1 1/2" MS': 4.75,
+  'TORX 1/4-20 X 1 1/2" MS/EA': 6.05,
+};
+const FASTENER_DESCRIPTIONS = {
+  // Threshold Fasteners
+  'PA': 'Push Anchor',
+  'LES': 'Lead Expansion Shield',
+  '10-24 MS/LA': '10-24 Machine Screw / Lead Anchor',
+  '1/4-20 MS/EA': '1/4-20 Machine Screw / Expansion Anchor',
+  '1/4-20-2" COMBO': '1/4-20 Combination Machine Screw / Anchor',
+  'HIL PH 1/4 X 1 3/4"': 'Hilti Kwik-Con II Phillips 1/4" x 1-3/4"',
+  'HIL TX 1/4 X 1 3/4"': 'Hilti Kwik-Con II Torx 1/4" x 1-3/4"',
+  '10-24 MS': '10-24 Machine Screw',
+  '1/4-20 MS': '1/4-20 Machine Screw',
+  '10-24 LA': '10-24 Lead Anchor',
+  '1/4-20 EA': '1/4-20 Expansion Anchor',
+  // Stainless Steel Threshold Fasteners
+  '10-24 SS MS/LA': '10-24 Stainless Steel Machine Screw / Lead Anchor',
+  '1/4-20 SS MS/EA': '1/4-20 Stainless Steel Machine Screw / Expansion Anchor',
+  '10 X 1 1/2" SSWS': '#10 x 1-1/2" Stainless Steel Wood Screw',
+  '10 X 2-1/2" SSWS': '#10 x 2-1/2" Stainless Steel Wood Screw',
+  '12 X 1 1/2" SSWS': '#12 x 1-1/2" Stainless Steel Wood Screw',
+  '14 X 1 1/2" SSWS': '#14 x 1-1/2" Stainless Steel Wood Screw',
+  'SPANNER 10-24 SSMS/LA': 'Spanner Head 10-24 Stainless Steel Machine Screw / Lead Anchor',
+  'SPANNER 1/4-20 SSMS/LA': 'Spanner Head 1/4-20 Stainless Steel Machine Screw / Lead Anchor',
+  'SNB': 'Sex Nut & Bolt (for 1-3/4" doors)',
+  // TEK Self-Drilling SS SMS
+  'TEK 6 X 1/2"': '#6 x 1/2" TEK Self-Drilling Stainless Steel SMS',
+  'TEK 6 X 3/4"': '#6 x 3/4" TEK Self-Drilling Stainless Steel SMS',
+  'TEK 6 X 1"': '#6 x 1" TEK Self-Drilling Stainless Steel SMS',
+  'TEK 6 X 1 1/2"': '#6 x 1-1/2" TEK Self-Drilling Stainless Steel SMS',
+  'TEK 8 X 3/4"': '#8 x 3/4" TEK Self-Drilling Stainless Steel SMS',
+  'TEK 8 X 1"': '#8 x 1" TEK Self-Drilling Stainless Steel SMS',
+  'TEK 8 X 1 1/2"': '#8 x 1-1/2" TEK Self-Drilling Stainless Steel SMS',
+  'TEK 10 X 3/4"': '#10 x 3/4" TEK Self-Drilling Stainless Steel SMS',
+  'TEK 10 X 1"': '#10 x 1" TEK Self-Drilling Stainless Steel SMS',
+  'TEK 10 X 1 1/2"': '#10 x 1-1/2" TEK Self-Drilling Stainless Steel SMS',
+  'TEK 12 X 1 1/2"': '#12 x 1-1/2" TEK Self-Drilling Stainless Steel SMS',
+  // TORX Security Screws
+  'TORX 6 X 3/4" SS': '#6 x 3/4" Torx Security Stainless Steel SMS',
+  'TORX 6 X 1"': '#6 x 1" Torx Security SMS',
+  'TORX 6 X 1 1/2"': '#6 x 1-1/2" Torx Security SMS',
+  'TORX 8 X 3/4"': '#8 x 3/4" Torx Security SMS',
+  'TORX 8 X 1"': '#8 x 1" Torx Security SMS',
+  'TORX 10 X 3/4"': '#10 x 3/4" Torx Security SMS',
+  'TORX 10 X 1"': '#10 x 1" Torx Security SMS',
+  'TORX 10 X 1 1/2"': '#10 x 1-1/2" Torx Security SMS',
+  'TORX 10-24 X 1 1/2" MS': '10-24 x 1-1/2" Torx Security Machine Screw',
+  'TORX 10-24 X 1 1/2" MS/LA': '10-24 x 1-1/2" Torx Security Machine Screw / Lead Anchor',
+  'TORX 12 X 1"': '#12 x 1" Torx Security SMS',
+  'TORX 12 X 1 1/2"': '#12 x 1-1/2" Torx Security SMS',
+  'TORX 1/4-20 X 1 1/2" MS': '1/4-20 x 1-1/2" Torx Security Machine Screw',
+  'TORX 1/4-20 X 1 1/2" MS/EA': '1/4-20 x 1-1/2" Torx Security Machine Screw / Expansion Anchor',
 };
 
 function detectFastener(rawStr) {
@@ -8116,7 +8196,12 @@ function addToQuote(key, listPrice, unit) {
   if (existing) {
     existing.qty += 1;
   } else {
-    const desc = getNGPDescription(key);
+    const baseForDesc = key.replace(/\s*\([^)]+\)$/, '').replace(/-\d+(?:in|ft|")$/, '').replace(/-\d+-\d+\/\d+"?$/, '');
+    const fastenerMatch = key.match(/\(([^)]+)\)$/);
+    const fastenerCode = fastenerMatch ? fastenerMatch[1].trim().toUpperCase().replace(/\s+/g, ' ') : null;
+    const fastenerDesc = fastenerCode ? FASTENER_DESCRIPTIONS[fastenerCode] : null;
+    const partDesc = getNGPDescription(baseForDesc);
+    const desc = [partDesc, fastenerDesc ? `w/ ${fastenerDesc}` : null].filter(Boolean).join(' — ');
     quoteItems.push({ key, listPrice, unit, qty: 1, desc: desc || null });
   }
   document.getElementById('quote-section').style.display = '';
