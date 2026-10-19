@@ -7655,7 +7655,7 @@ function detectFastener(rawStr) {
       if (FASTENER_ADDERS[codeWithInch] != null) { code = codeWithInch; rate = FASTENER_ADDERS[codeWithInch]; }
     }
     if (rate != null) {
-      return { cleanStr: rawStr.slice(0, m.index).trim(), fastenerAdder: rate, fastenerLabel: m[1].trim() };
+      return { cleanStr: rawStr.slice(0, m.index).trim(), fastenerAdder: rate, fastenerLabel: code };
     }
   }
   return { cleanStr: rawStr, fastenerAdder: 0, fastenerLabel: null };
