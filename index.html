@@ -7647,8 +7647,13 @@ const FASTENER_DESCRIPTIONS = {
 function detectFastener(rawStr) {
   const m = rawStr.match(/\(([^)]+)\)\s*$/);
   if (m) {
-    const code = m[1].trim().toUpperCase().replace(/\s+/g, ' ');
-    const rate = FASTENER_ADDERS[code];
+    let code = m[1].trim().toUpperCase().replace(/\s+/g, ' ');
+    let rate = FASTENER_ADDERS[code];
+    // Allow omitting trailing inch mark
+    if (rate == null && /\d$/.test(code)) {
+      const codeWithInch = code + '"';
+      if (FASTENER_ADDERS[codeWithInch] != null) { code = codeWithInch; rate = FASTENER_ADDERS[codeWithInch]; }
+    }
     if (rate != null) {
       return { cleanStr: rawStr.slice(0, m.index).trim(), fastenerAdder: rate, fastenerLabel: m[1].trim() };
     }
