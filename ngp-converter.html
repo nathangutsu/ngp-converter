@@ -7676,9 +7676,8 @@ function doUnifiedLookup() {
   if (isKnownNGP) {
     document.getElementById('ngp-input').value = rawUnified.trim();
     doNGPLookup();
-    document.getElementById('unified-result').innerHTML = `<div style="margin-top:10px;padding:8px 14px;background:#0d1f3c;border:1px solid #2a3a5e;border-radius:6px;font-size:0.83rem;color:#a0b8d8">
-      Recognized as NGP part — <a href="#ngp-input" onclick="document.getElementById('ngp-input').scrollIntoView({behavior:'smooth'});return false;" style="color:#6a9fd8;text-decoration:underline">see result below</a>
-    </div>`;
+    const ngpHTML = document.getElementById('ngp-result').innerHTML;
+    document.getElementById('unified-result').innerHTML = `<div class="result-card found" style="margin-top:16px">${ngpHTML}</div>`;
     return;
   }
 
