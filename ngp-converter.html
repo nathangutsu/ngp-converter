@@ -1496,7 +1496,7 @@ const NGP_DESCRIPTIONS = {
   "137SVB": "Silicone Dense Bulb Perimeter Seal",
   "137SVDKB": "Silicone Dense Bulb Perimeter Seal",
   "139": "Astragal",
-  "139A": "Automatic Door Bottom",
+  "139A": "Anodized Aluminum Finish, Solid Metal Astragal",
   "139B": "Astragal",
   "139DKB": "Astragal",
   "139EB": "Astragal",
@@ -2077,7 +2077,7 @@ const NGP_DESCRIPTIONS = {
   "197NVB": "Neoprene Sweep",
   "197NVDKB": "Neoprene Sweep",
   "198N": "Neoprene Sweep",
-  "198NA": "Neoprene/Silicone Sweep",
+  "198NA": "Anodized Aluminum Neoprene/Silicone Sweep",
   "198NB": "Neoprene Sweep",
   "198NDKB": "Neoprene Sweep",
   "198NEB": "Neoprene Sweep",
@@ -7671,6 +7671,15 @@ function doUnifiedLookup() {
   const multiplierRaw = parseFloat(document.getElementById('ngp-multiplier').value);
   const multiplier = (!isNaN(multiplierRaw) && multiplierRaw > 0 && multiplierRaw <= 1) ? multiplierRaw : null;
 
+  // 0. If input is already a known NGP part, skip cross-reference entirely
+  const isKnownNGP = !!getNGPDescription(input) || Object.keys(DATA.prices).some(k => k === input || k.startsWith(input + '-'));
+  if (isKnownNGP) {
+    document.getElementById('ngp-input').value = rawUnified.trim();
+    doNGPLookup();
+    document.getElementById('unified-result').innerHTML = '';
+    return;
+  }
+
   // 1. Try PEMKO, then ZERO cross-reference
   const pemkoResult = lookupNGP('pemko', input);
   const zeroResult = !pemkoResult ? lookupNGP('zero', input) : null;
@@ -8288,7 +8297,7 @@ function renderQuote() {
   if (shippingChecked) {
     const colSpan = mult ? 3 : 2;
     let freightCost = 0;
-    if (grandTotal >= 2500) {
+    if (grandTotal >= 2000) {
       shippingHTML = `<tr>
         <td colspan="${colSpan}" style="text-align:right;font-weight:600;color:#a0a0b0;padding:6px 8px">Shipping Estimate</td>
         <td></td>
@@ -8354,7 +8363,7 @@ function renderQuote() {
     if (shippingChecked) {
       const colspan = mult ? 4 : 3;
       let ashFreight = 0;
-      if (grandTotal >= 2500) {
+      if (grandTotal >= 2000) {
         shippingRow = `<tr><td colspan="${colspan}" style="${tdStyle}text-align:right;background:#f5f7fa;font-weight:bold">Shipping Estimate</td><td style="${numStyle}background:#f5f7fa">PP'D Freight — $0.00</td></tr>`;
       } else {
         const shipping = Math.max(40, Math.ceil(grandTotal * 0.10));
